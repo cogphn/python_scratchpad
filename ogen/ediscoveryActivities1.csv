@@ -1,0 +1,40 @@
+,Friendly name,Operation,Corresponding cmdlet,Description
+0,Added member to eDiscovery case,CaseMemberAdded,Add-ComplianceCaseMember,"A user was added as a member of an eDiscovery case. As a member of a case, a user can perform various case-related tasks depending on whether they've been assigned the necessary permissions."
+1,Changed content search,SearchUpdated,Set-ComplianceSearch,An existing content search was changed. Changes can include adding or removing content locations or editing the search query.
+2,Changed eDiscovery administrator membership,CaseAdminUpdated,Update-eDiscoveryCaseAdmin,"The list of eDiscovery Administrators in your organization was changed. This activity is logged when the list of eDiscovery Administrators is replaced with a group of new users. If a single user is added or removed, the CaseAdminAdded operation is logged."
+3,Changed eDiscovery case,CaseUpdated,Set-ComplianceCase,An eDiscovery case was changed. Changes include closing an open case or reopening a closed case.
+4,Changed eDiscovery case membership,CaseMemberUpdated,Update-ComplianceCaseMember,"The membership list of an eDiscovery case was changed. This activity is logged when all members are replaced with a group of new users. If a single member is added or removed, CaseMemberAdded or CaseMemberRemoved operation is logged."
+5,Changed search permissions filter,SearchPermissionUpdated,Set-ComplianceSecurityFilter,A search permissions filter was changed.
+6,Changed search query for eDiscovery case hold,HoldUpdated,Set-CaseHoldRule,A query-based hold associated with an eDiscovery case was changed. Possible changes include editing the query or date range for a query-based hold.
+7,Content search preview item downloaded,PreviewItemDownloaded,,A user downloaded an item to their local computer (by selecting the Download original item link) when previewing search results.
+8,Content search preview item listed,PreviewItemListed,,"A user selected Preview search results to display the preview search results page, which lists up to 1,000 items from the results of a search."
+9,Content search preview item viewed,PreviewItemRendered,,An eDiscovery manager viewed an item by selecting it when previewing search results.
+10,Created content search,SearchCreated,New-ComplianceSearch,A new content search was created.
+11,Created eDiscovery administrator,CaseAdminAdded,Add-eDiscoveryCaseAdmin,A user was added as an eDiscovery Administrator in the organization.
+12,Created eDiscovery case,CaseAdded,New-ComplianceCase,"An eDiscovery case was created. When a case is created, you only have to give it a name. Other case-related tasks such as adding members, creating holds, and creating content searches associated with the case result in additional events being logged."
+13,Created search permissions filter,SearchPermissionCreated,New-ComplianceSecurityFilter,A search permissions filter was created.
+14,Created search query for eDiscovery case hold,HoldCreated,New-CaseHoldRule,A query-based hold associated with an eDiscovery case was created.
+15,Deleted content search,SearchRemoved,Remove-ComplianceSearch,An existing content search was deleted.
+16,Deleted eDiscovery administrator,CaseAdminRemoved,Remove-eDiscoveryCaseAdmin,An eDiscovery Administrator was deleted from your organization.
+17,Deleted eDiscovery case,CaseRemoved,Remove-ComplianceCase,An eDiscovery case was deleted. Any hold associated with the case has to be removed before the case can be deleted.
+18,Deleted search permissions filter,SearchPermissionRemoved,Remove-ComplianceSecurityFilter,A search permissions filter was deleted.
+19,Deleted search query for eDiscovery case hold,HoldRemoved,Remove-CaseHoldRule,"A query-based hold associated with an eDiscovery case was deleted. Removing the query from the hold is often the result of deleting a hold. When a hold or a hold query is deleted, the content locations that were on hold are released."
+20,Downloaded export of content search,SearchExportDownloaded,,A user downloaded the results of a content search to their local computer. A Started export of content search activity has to be initiated before search results can be downloaded.
+21,Previewed results of content search,SearchPreviewed,,A user previewed the results of a content search.
+22,Purged results of content search,SearchResultsPurged,New-ComplianceSearchAction,A user purged the results of a Content search by running the New-ComplianceSearchAction -Purge command.
+23,Removed analysis of content search,RemovedSearchResultsSentToZoom,Remove-ComplianceSearchAction,"A content search prepare action (to prepare search results for eDiscovery (Premium)) was deleted. If the preparation action was less than two weeks old, the search results that were prepared for eDiscovery (Premium) were deleted from the Microsoft Azure storage area. If the preparation action was older than 2 weeks, then this event indicates that only the corresponding preparation action was deleted."
+24,Removed export of content search,RemovedSearchExported,Remove-ComplianceSearchAction,"A content search export action was deleted. If the export action was less than two weeks old, the search results that were uploaded to the Microsoft Azure storage area were deleted. If the export action was older than 2 weeks, then this event indicates that only the corresponding export action was deleted."
+25,Removed member from eDiscovery case,CaseMemberRemoved,Remove-ComplianceCaseMember,A user was removed as a member of an eDiscovery case.
+26,Removed preview results of content search,RemovedSearchPreviewed,Remove-ComplianceSearchAction,A content search preview action was deleted.
+27,Removed purge action performed on content search,RemovedSearchResultsPurged,Remove-ComplianceSearchAction,A content search purge action was deleted.
+28,Removed search report,SearchReportRemoved,Remove-ComplianceSearchAction,A content search export report action was deleted.
+29,Started analysis of content search,SearchResultsSentToZoom,New-ComplianceSearchAction,The results of a content search were prepared for analysis in eDiscovery (Premium).
+30,Started content search,SearchStarted,Start-ComplianceSearch,"A content search was started. When you create or change a content search by using the compliance portal, the search is automatically started."
+31,Started export of content search,SearchExported,New-ComplianceSearchAction,A user exported the results of a content search.
+32,Started export report,SearchReport,New-ComplianceSearchAction,A user exported a content search report.
+33,Stopped content search,SearchStopped,Stop-ComplianceSearch,A user stopped a content search.
+34,(none),CaseViewed,Get-ComplianceCase,A user viewed a eDiscovery (Standard) case in the compliance portal. The audit record for this event includes the name of the case that was viewed.
+35,(none),SearchViewed,Get-ComplianceSearch,A user viewed a Content search in the compliance portal by accessing the search on the Searches tab in a eDiscovery (Standard) case or accessing it on the Content search page. The audit record for this event includes the identity of the search that was viewed.
+36,(none),ViewedSearchExported,Get-ComplianceSearchAction -Export,A user viewed a Content search export in the compliance portal by accessing the export on the Exports tab on the Content search page. This activity is also logged when a user views an export associated with a eDiscovery (Standard) case.
+37,(none),ViewedSearchPreviewed,Get-ComplianceSearchAction -Preview,A user previewed the results of a Content search in the compliance portal. This activity is also logged when a user previews the results of a search associated with a eDiscovery (Standard) case.
+38,,,,

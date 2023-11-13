@@ -1,0 +1,31 @@
+,Property,Description
+0,Case,"The identity (GUID) of the eDiscovery case that was created, changed, or deleted."
+1,ClientApplication,eDiscovery cmdlet activities have a value of EMC for this property. This indicates the activity was performed by using the compliance portal GUI or running the cmdlet in PowerShell.
+2,ClientIP,The IP address of the device that was used when the activity was logged. The IP address is displayed in either an IPv4 or IPv6 address format.
+3,ClientRequestId,"For eDiscovery activities, this property is typically blank."
+4,CmdletVersion,The build number for the version of the compliance portal running in your organization.
+5,CreationTime,The date and time in Coordinated Universal Time (UTC) when the eDiscovery activity was completed.
+6,EffectiveOrganization,The name of the Microsoft 365 organization.
+7,ExchangeLocations,The Exchange Online mailboxes that are included in a content search or placed on hold in an eDiscovery case.
+8,Exclusions,Mailbox or site locations that are excluded from a content search or a hold in an eDiscovery case.
+9,ExtendedProperties,"Additional properties from a content search, a content search action, or hold in an eDiscovery case, such as the object GUID and the corresponding cmdlet and cmdlet parameters that were used when the activity was performed."
+10,Id,The ID of the report entry. The ID uniquely identifies the audit log entry.
+11,NonPIIParameters,A list of the parameters (without any values) that were used with the cmdlet identified in the Operation property. The parameters listed in this property are the same as those listed in the Parameters property.
+12,ObjectId,"The GUID or name of the object (for example, a Content search or a eDiscovery (Standard) case) that was created, accessed, changed, or deleted by the activity listed in the Operation property. This object is also identified in the Item column in the audit log search results."
+13,ObjectType,"The type of eDiscovery object that the user created, deleted, or modified; for example, a content search action (preview, export, or purge), an eDiscovery case, or a content search."
+14,Operation,The name of the operation that corresponds to the eDiscovery activity that was performed.
+15,OrganizationId,The GUID for your Microsoft 365 organization.
+16,Parameters,The name and value for the parameters that were used with the corresponding cmdlet.
+17,PublicFolderLocations,The public folder locations in Exchange Online that are included in a content search or placed on hold in an eDiscovery case.
+18,Query,"The search query associated with the activity, such as a content search or a query-based hold."
+19,RecordType,The type of operation indicated by the record. The value of 18 indicates an event related to an activity listed in the eDiscovery cmdlet activities section. A value of 24 indicates an event related to an activity listed in the How to search for and view eDiscovery activities section.
+20,ResultStatus,Indicates whether the action (specified in the Operation property) was successful or not.
+21,SecurityComplianceCenterEventType,Indicates that the activity was a compliance portal event. All eDiscovery activities will have a value of 0 for this property.
+22,SharepointLocations,The SharePoint Online sites that are included in a content search or placed on hold in an eDiscovery case.
+23,StartTime,The date and time in Coordinated Universal Time (UTC) when the eDiscovery activity was started.
+24,UserId,The user who performed the activity (specified in the Operation property) that resulted in the record being logged. Records for eDiscovery activity performed by system accounts (such as NT AUTHORITY\SYSTEM) are also included in the audit log.
+25,UserKey,"An alternative ID for the user identified in the UserId property. For eDiscovery activities, the value for this property is typically the same as the UserId property."
+26,UserServicePlan,"The subscription used by your organization. For eDiscovery activities, this property is typically blank."
+27,UserType,The type of user that performed the operation. The following values indicate the user type. 0 A regular user. 2 An administrator in your organization. 3 A Microsoft datacenter administrator or datacenter system account. 4 A system account. 5 An application. 6 A service principal.
+28,Version,Indicates the version number of the activity (identified by the Operation property) that's logged.
+29,Workload,"The service where the activity occurred. For eDiscovery activities, the value is SecurityComplianceCenter."

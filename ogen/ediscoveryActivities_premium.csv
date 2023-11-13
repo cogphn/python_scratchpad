@@ -1,0 +1,25 @@
+,Friendly name,Operation,Description
+0,Added data to another review set,AddWorkingSetQueryToWorkingSet,User added documents from one review set to a different review set.
+1,Added data to review set,AddQueryToWorkingSet,User added the search results from a content search associated with an eDiscovery (Premium) case to a review set.
+2,Added non-Microsoft 365 data to review set,AddNonOffice365DataToWorkingSet,User added non-Microsoft 365 data to a review set.
+3,Added remediated documents to review set,AddRemediatedData,User uploads documents that had indexing errors that were fixed to a review set.
+4,Analyzed data in review set,RunAlgo,User ran analytics on the documents in a review set.
+5,Annotated document in review set,AnnotateDocument,User annotated a document in a review set. Annotation includes redacting content in a document.
+6,Compared load sets,LoadComparisonJob,User compared two different load sets in a review set. A load set is when data from a content search that associated with the case is added to a review set.
+7,Converted redacted documents to PDF,BurnJob,User converted all the redacted documents in a review set to PDF files.
+8,Created review set,CreateWorkingSet,User created a review set.
+9,Created review set search,CreateWorkingSetSearch,User created a search query that searches the documents in a review set.
+10,Created tag,CreateTag,User created a tag group in a review set. A tag group can contain one or more child tags. These tags are then used to tag documents in the review set.
+11,Deleted review set search,DeleteWorkingSetSearch,User deleted a search query in a review set.
+12,Deleted tag,DeleteTag,User deleted a tag or a tag group in a review set.
+13,Downloaded document,DownloadDocument,User downloaded a document from a review set.
+14,Edited tag,UpdateTag,User changed a tag in a review set.
+15,Exported documents from review set,ExportJob,User exported documents from a review set.
+16,Modified case setting,UpdateCaseSettings,"User modified the settings for a case. Case settings include case information, access permissions, and settings that control search and analytics behavior."
+17,Modified review set search,UpdateWorkingSetSearch,User edited a search query in a review set.
+18,Previewed review set search,PreviewWorkingSetSearch,User previewed the results of a search query in a review set.
+19,Remediated error documents,ErrorRemediationJob,User fixes files that contained indexing errors.
+20,Tagged document,TagFiles,User tags a document in a review set.
+21,Tagged results of a query,TagJob,User tags all of the documents that match the criteria of search query in a review set.
+22,Viewed document in review set,ViewDocument,User viewed a document in a review set.
+23,,,
