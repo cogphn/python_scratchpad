@@ -2,48 +2,18 @@ import pandas as pd
 import numpy as np
 from numpy.random import choice
 import random
-
-num_requests = 200
-
+import json
 
 
-cols = [
-    
-    {
-        'name':'logsources','datatype':'cat', 'req_datatype':'assessment', 'config': 
-        {
-            'choices':['EDR','SIEM','AV','PROXY'],
-            'choices_prob':[0.5,0.2,0.2,0.1]
-        },
-    },
-    {
-        'name':'reference_list_needed','datatype':'cat', 'req_datatype':'assessment', 'config': 
-        {
-            'choices':['YES','NO'],
-            'choices_prob':[0.5,0.5]
-        },
-    },
-    {
-        'name':'reference_list_exists','datatype':'cat', 'req_datatype':'assessment', 'config': 
-        {
-            'choices':['YES','NO','NA'],
-            'dep_field':'reference_list_needed',
-            'valmap':{
-                'NO':'NA',
-                'YES':{
-                    'choices':['YES','NO'],
-                    'choices_prob':[0.5,0.5]
-                }
-            }
-        },
-    },
-    {
-        'name':'severity','datatype':'discrete', 'req_datatype':'metrics', 'config': 
-        {
-            'numrange':[0,5]
-        },
-    }
-]
+
+num_requests = 500
+mitredata = None
+with open("mitredata.json") as infile:
+    mitredata = json.loads(infile.read())
+
+
+with open("colcfg.json") as infile:
+    cols = json.loads(infile.read())
 
 
 
@@ -55,7 +25,6 @@ def get_choice(choices:list, choices_prob:list):
 def setval_choices(choices_dict:dict):
     return get_choice(choices_dict['choices'], choices_dict['choices_prob'])
 #
-
 
 
 if __name__ == "__main__":
@@ -75,7 +44,7 @@ if __name__ == "__main__":
 
                     if dfield not in dep_fields:
                         dep_fields.append({'fieldname':c['name'], 'config':c['config'] })
-                    row[c['name']] = "*NA"
+                    row[c['name']] = "NA"
                 else:
                     row[c['name']] = get_choice(c['config']['choices'],c['config']['choices_prob'])
                 #
@@ -83,6 +52,9 @@ if __name__ == "__main__":
                 row[c['name']] = random.randint(c['config']['numrange'][0], c['config']['numrange'][1])
             #
         #
+        randtechnique = mitredata[random.randint(0,len(mitredata))]
+        row['tactic'] = randtechnique['tactic']
+        row['technique'] = randtechnique['technique']
         i +=1
         data.append(row)
 
@@ -103,6 +75,7 @@ if __name__ == "__main__":
             else:
                 df.loc[df[ref_field]==src_field_val,dep['fieldname']] = '*'+valmap[k]
             #
+    
     df.to_csv("output.csv", index=False)
     
 
