@@ -1,0 +1,64 @@
+[
+    {
+        "name":"src","datatype":"cat", "req_data_category":"initial", "config":
+        {
+            "choices":["secops","ops","external","other"],
+            "choices_prob":[0.5,0.2,0.2,0.1]
+        }
+    },
+    {
+        "name":"logsources","datatype":"cat", "req_data_category":"assessment", "config": 
+        {
+            "choices":["EDR","SIEM","AV","PROXY"],
+            "choices_prob":[0.5,0.2,0.2,0.1]
+        }
+    },
+    {
+        "name":"reference_list_needed","datatype":"cat", "req_data_category":"assessment", "config": 
+        {
+            "choices":["YES","NO"],
+            "choices_prob":[0.5,0.5]
+        }
+    },
+    {
+        "name":"reference_list_exists","datatype":"cat", "req_data_category":"assessment", "config": 
+        {
+            "choices":["YES","NO","NA"],
+            "dep_field":"reference_list_needed",
+            "valmap":{
+                "NO":"NA",
+                "YES":{
+                    "choices":["YES","NO"],
+                    "choices_prob":[0.5,0.5]
+                }
+            }
+        }
+    },
+    {
+        "name":"severity","datatype":"discrete", "req_data_category":"assessment", "config": 
+        {
+            "numrange":[0,5]
+        }
+    },
+    {
+        "name":"est_dev_complexity","datatype":"discrete", "req_data_category":"assessment", "config": 
+        {
+            "numrange":[0,5]
+        }
+    },
+    {
+        "name":"fidelity","datatype":"discrete", "req_data_category":"devtest", "config": 
+        {
+            "numrange":[0,5]
+        }
+    },
+    {
+        "name":"implementation_complexity","datatype":"cat", "req_data_category":"assessment", "config": 
+        {
+            "choices":["low","med","high"],
+            "choices_prob":[0.2,0.6,0.2]
+        }
+    }
+
+
+]
