@@ -1,8 +1,4 @@
 import requests
-
-import pandas as pd
-
-
 infile_path = "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/refs/heads/master/enterprise-attack/enterprise-attack-16.1.json"
 
 resp = requests.get(infile_path)
@@ -16,7 +12,7 @@ for o in data['objects']:
         tactic_name= o['name']
         tactic_id = o['external_references'][0]['external_id']
         tactic_description = o['description']
-        tactic_name_ref = o['name'].lower().replace(" ","-")
+        tactic_name_ref = o['name'].lower().replace(" ","-")        
         tactics.append({
             'tactic_name':tactic_name,
             'tactic_id':tactic_id,
@@ -27,18 +23,25 @@ for o in data['objects']:
         technique_name = o['name']
         technique_id = o['external_references'][0]['external_id']
         kill_chain_phases = o['kill_chain_phases']
-        for kcp in kill_chain_phases:
-            techniques.append({
-                'technique_name':technique_name,
-                'technique_id': technique_id,
-                'tactic_name_ref': kcp['phase_name']
-            })
+        #for kcp in kill_chain_phases:
+        #    techniques.append({
+        #        'technique_name':technique_name,
+        #        'technique_id': technique_id,
+        #        'tactic_name_ref': kcp['phase_name'],
+        #    })
+        techniques.append({
+            "technique_name" : technique_name,
+            "technique_id": technique_id,
+            "kill_chain_phases": kill_chain_phases,
+            "platforms": o['x_mitre_platforms']
+
+        })
     #
 #
 
 
-t = pd.DataFrame(tactics)
-tech = pd.DataFrame(techniques)
+mitre_tactics = pd.DataFrame(tactics)
+mitre_techniques = pd.DataFrame(techniques)
+technique_platforms = mitre_techniques.explode("platforms")[['technique_name','technique_id','platforms']].rename(columns={"platforms":"platform"})
 
-pd.merge(left=tech, right=t, left_on='tactic_name_ref', right_on='tactic_name_ref').to_csv("mitre16.csv", index=False)
-
+#pd.merge(left=tech, right=t, left_on='tactic_name_ref', right_on='tactic_name_ref').to_csv("mitre16.csv", index=False)
