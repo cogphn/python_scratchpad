@@ -1,9 +1,28 @@
+import pandas as pd
+import folium
+import requests
+data = pd.read_csv("rain.csv")
+points = data[['lat','long']].drop_duplicates().to_dict(orient='records')
+bikeresp = requests.get("https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_information").json()
+bikedata = pd.DataFrame(bikeresp['data']['stations'])
+bikedata_trails = bikedata[bikedata['name'].str.lower().str.contains("trail")][['name','lat','lon','capacity','physical_configuration','is_charging_station']].copy().to_dict(orient="records")
+bikedata_trails1 = bikedata[(bikedata['lat'] > 43.685493) & (bikedata['lon'] > -79.375279) & (bikedata['lat'] < 43.723941) & (bikedata['lon'] < -79.30183)][['name','lat','lon','capacity','physical_configuration','is_charging_station']].copy().to_dict(orient="records")
+
+
 map = folium.Map(location=(43.701049, -79.353405), zoom_start=14)
 
 for p in points:
   folium.Marker(
       location=[p['lat'], p['long']],
       icon=folium.Icon(icon='cloud'),
+  ).add_to(map)
+
+for station in bikedata_trails1:
+  folium.Marker(
+      location=[station['lat'],station['lon']],
+      tooltip=station['capacity'],
+      popup=station['name'],
+      icon=folium.Icon(color="green"),
   ).add_to(map)
 
 
@@ -36,3 +55,4 @@ trail_coordinates = [
 ]
 
 folium.PolyLine(trail_coordinates, tooltip="sbpath").add_to(map)
+map
