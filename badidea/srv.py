@@ -1,16 +1,32 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import superdb
 import json
+import os
+from dotenv import load_dotenv
+import importlib 
+import asyncio
+import pugsql
+from datetime import datetime 
+
 
 sdbclient = superdb.Client()
-app = FastAPI()
+
+
+load_dotenv()
+CONSTR = os.getenv('CONSTR')
+
+queries = pugsql.module('queries')
+queries.connect(CONSTR)
+
 
 try:
     sdbclient.create_pool("temperature")
 except Exception as e:
-    print("[!] pool exists maybe idk")
+    print(f"[!] pool exists maybe idk: {e}")
 #
+
 
 class TempRecord(BaseModel):
     ts_utc: str
@@ -19,6 +35,34 @@ class TempRecord(BaseModel):
     temp_humidity_c: float
     temp_adjusted_c: float
 #
+
+
+def _get_config_names():
+    config_names = [c['name'] for c in queries.get_configs()]
+    return { "response_code": 0, "data": config_names }
+
+def _get_config(config_name: str) -> dict:
+    config = queries.get_config(name=config_name)
+    return config
+#
+
+async def bgtasks():
+    while True:
+        print("[*] reloading modules (not implemented )...")
+        #importlib.reload(bim)
+        await asyncio.sleep(300)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[*] creating background task")
+    asyncio.create_task(bgtasks())
+    yield
+    print("[!] shutting down...")
+#
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/")
 async def idx():
@@ -38,5 +82,14 @@ async def get_tempdata():
     return values
 #
 
+@app.get("/getconfig")
+async def get_config(name: str = "NA"):
+    if name == "NA":
+        return {"response_code": 0, "data": {} }
+    else:
+        config = _get_config(name)
+        return {"response_code": 0, "data": config}
+    #
+#
 
 
