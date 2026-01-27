@@ -36,6 +36,13 @@ class TempRecord(BaseModel):
     temp_adjusted_c: float
 #
 
+class LabConfig(BaseModel):
+    enabled: bool
+#
+
+class ConfigArgs(BaseModel):
+    configname: str
+    config: LabConfig 
 
 def _get_config_names():
     config_names = [c['name'] for c in queries.get_configs()]
@@ -81,6 +88,14 @@ async def get_tempdata():
     values = sdbclient.query('from temperature | sort -r ts_utc | limit 20')
     return values
 #
+
+@app.post("/reconfig")
+async def reconfig(newconfig: ConfigArgs):
+    args = json.dumps({"enabled":newconfig.config.enabled})
+    config_name = newconfig.configname  
+    reconfig_reg = queries.update_config(name=config_name, args=args)
+    return { "response_code": 0, "data": reconfig_reg }
+
 
 @app.get("/getconfig")
 async def get_config(name: str = "NA"):
