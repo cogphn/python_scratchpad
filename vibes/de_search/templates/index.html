@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Detection Rule Search</title>
+</head>
+<body>
+    <h1>Detection Rule Search</h1>
+    <form action="/search" method="get">
+        <input type="text" name="q" value="{{ query if query else '' }}">
+        <input type="submit" value="Search">
+    </form>
+    {% if results %}
+        <h2>Search Results:</h2>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Source</th>
+                <th>URL</th>
+            </tr>
+            {% for result in results %}
+                <tr>
+                    <td>{{ result[0] }}</td>
+                    <td>{{ result[1] }}</td>
+                    <td><a href="{{ result[2] }}" target="_blank">{{ result[2] }}</a></td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+</body>
+</html>
