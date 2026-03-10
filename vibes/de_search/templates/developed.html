@@ -19,6 +19,8 @@
             overflow-x: hidden;
             padding-top: 20px;
             border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
         }
 
         .nav a {
@@ -104,12 +106,12 @@
                                 <th scope="col">Query</th>
                                 <th scope="col">Notes</th>
                                 <th scope="col">Coverage Confidence</th>
+                                <th scope="col">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for row in developed_detections %}
                                 <tr>
-                                    <td>{{ row[0] }}</td>
                                     <td>{{ row[1] }}</td>
                                     <td>{{ row[2] }}</td>
                                     <td>{{ row[3] }}</td>
@@ -117,6 +119,12 @@
                                     <td>{{ row[5] }}</td>
                                     <td>{{ row[6] }}</td>
                                     <td>{{ row[7] }}</td>
+                                    <td>{{ row[8] }}</td>
+                                    <td>
+                                        <form action="{{ url_for('delete_detection', detection_id=row[0]) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this detection?');">
+                                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                        </form>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
