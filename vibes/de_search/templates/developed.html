@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Developed Detections</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin-left: 200px;
+        }
+
+        .nav {
+            height: 100%;
+            width: 200px;
+            position: fixed;
+            z-index: 1;
+            top: 0;
+            left: 0;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+            padding-top: 20px;
+            border-right: 1px solid #dee2e6;
+        }
+
+        .nav a {
+            padding: 6px 8px 6px 16px;
+            text-decoration: none;
+            font-size: 18px;
+            color: #495057;
+            display: block;
+        }
+
+        .nav a:hover {
+            color: #007bff;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="nav">
+        <a href="/">Search</a>
+        <a href="/observed">Observed</a>
+        <a href="/developed">Developed</a>
+        <a href="/dashboard">Dashboard</a>
+    </div>
+
+    <div class="container py-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h1 class="card-title text-primary">Developed Detections</h1>
+                <form action="/developed" method="post">
+                    <div class="mb-3">
+                        <label for="observed_technique" class="form-label">Observed Technique</label>
+                        <select class="form-select" id="observed_technique" name="observed_technique">
+                            {% for ot in observed_techniques %}
+                                <option value="{{ ot[0] }}">{{ ot[1] }} - {{ ot[2] }} ({{ ot[3] }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="detection_count" class="form-label">Number of Detections</label>
+                        <input type="number" class="form-control" id="detection_count" name="detection_count" value="1">
+                    </div>
+                    <div class="mb-3">
+                        <label for="detection_type" class="form-label">Detection Type</label>
+                        <select class="form-select" id="detection_type" name="detection_type">
+                            <option value="alert">Alert</option>
+                            <option value="hunting">Hunting</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="query" class="form-label">Query</label>
+                        <textarea class="form-control" id="query" name="query" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="coverage_confidence" class="form-label">Coverage Confidence</label>
+                        <select class="form-select" id="coverage_confidence" name="coverage_confidence">
+                            <option value="low">Low</option>
+                            <option value="medium-low">Medium-Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="medium-high">Medium-High</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Submit</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title text-primary">Previously Developed Detections:</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-primary">
+                            <tr>
+                                <th scope="col">Technique ID</th>
+                                <th scope="col">Technique Name</th>
+                                <th scope="col">Environment</th>
+                                <th scope="col">Detection Count</th>
+                                <th scope="col">Detection Type</th>
+                                <th scope="col">Query</th>
+                                <th scope="col">Notes</th>
+                                <th scope="col">Coverage Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in developed_detections %}
+                                <tr>
+                                    <td>{{ row[0] }}</td>
+                                    <td>{{ row[1] }}</td>
+                                    <td>{{ row[2] }}</td>
+                                    <td>{{ row[3] }}</td>
+                                    <td>{{ row[4] }}</td>
+                                    <td>{{ row[5] }}</td>
+                                    <td>{{ row[6] }}</td>
+                                    <td>{{ row[7] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
