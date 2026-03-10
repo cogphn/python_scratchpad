@@ -18,10 +18,15 @@ def init_db():
             id INTEGER PRIMARY KEY,
             technique_id TEXT,
             environment_id INTEGER,
+            sample TEXT,
             FOREIGN KEY (technique_id) REFERENCES techniques(id),
             FOREIGN KEY (environment_id) REFERENCES environments(id)
         )
     ''')
+    try:
+        c.execute('ALTER TABLE observed_techniques ADD COLUMN sample TEXT')
+    except:
+        pass
     c.execute('''
         CREATE TABLE IF NOT EXISTS developed_detections (
             id INTEGER PRIMARY KEY,
@@ -59,6 +64,7 @@ def observed():
     if request.method == 'POST':
         technique_id = request.form['technique']
         environment_name = request.form['environment']
+        sample = request.form['sample']
 
         c.execute("SELECT id FROM environments WHERE name = ?", (environment_name,))
         env = c.fetchone()
@@ -69,7 +75,7 @@ def observed():
             conn.commit()
             env_id = c.lastrowid
         
-        c.execute("INSERT INTO observed_techniques (technique_id, environment_id) VALUES (?, ?)", (technique_id, env_id))
+        c.execute("INSERT INTO observed_techniques (technique_id, environment_id, sample) VALUES (?, ?, ?)", (technique_id, env_id, sample))
         conn.commit()
         conn.close()
         return redirect(url_for('observed'))
@@ -87,6 +93,68 @@ def observed():
     
     conn.close()
     return render_template('observed.html', techniques=techniques, observed_techniques=observed_techniques)
+
+@app.route('/observed/<int:observed_id>')
+def observed_detail(observed_id):
+    conn = sqlite3.connect('rules.db')
+    c = conn.cursor()
+    c.execute("""
+        SELECT ot.id, t.external_id, t.name, e.name, ot.sample
+        FROM observed_techniques ot
+        JOIN techniques t ON ot.technique_id = t.external_id
+        JOIN environments e ON ot.environment_id = e.id
+        WHERE ot.id = ?
+    """, (observed_id,))
+    observed_technique = c.fetchone()
+    conn.close()
+    if observed_technique is None:
+        return "Observed technique not found", 404
+    return render_template('observed_detail.html', observed_technique=observed_technique)
+
+@app.route('/edit_observed/<int:observed_id>', methods=['GET', 'POST'])
+def edit_observed(observed_id):
+    conn = sqlite3.connect('rules.db')
+    c = conn.cursor()
+
+    if request.method == 'POST':
+        technique_id = request.form['technique']
+        environment_name = request.form['environment']
+        sample = request.form['sample']
+
+        c.execute("SELECT id FROM environments WHERE name = ?", (environment_name,))
+        env = c.fetchone()
+        if env:
+            env_id = env[0]
+        else:
+            c.execute("INSERT INTO environments (name) VALUES (?)", (environment_name,))
+            conn.commit()
+            env_id = c.lastrowid
+
+        c.execute("""
+            UPDATE observed_techniques
+            SET technique_id = ?, environment_id = ?, sample = ?
+            WHERE id = ?
+        """, (technique_id, env_id, sample, observed_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('observed'))
+
+    c.execute("""
+        SELECT ot.id, t.external_id, t.name, e.name, ot.sample
+        FROM observed_techniques ot
+        JOIN techniques t ON ot.technique_id = t.external_id
+        JOIN environments e ON ot.environment_id = e.id
+        WHERE ot.id = ?
+    """, (observed_id,))
+    observed_technique = c.fetchone()
+
+    c.execute("SELECT external_id, name FROM techniques")
+    techniques = c.fetchall()
+    
+    conn.close()
+    if observed_technique is None:
+        return "Observed technique not found", 404
+    return render_template('edit_observed.html', observed_technique=observed_technique, techniques=techniques)
 
 @app.route('/developed', methods=['GET', 'POST'])
 def developed():
@@ -118,7 +186,7 @@ def developed():
     observed_techniques = c.fetchall()
 
     c.execute("""
-        SELECT t.external_id, t.name, e.name, dd.detection_count, dd.detection_type, dd.query, dd.notes, dd.coverage_confidence
+        SELECT dd.id, t.external_id, t.name, e.name, dd.detection_count, dd.detection_type, dd.query, dd.notes, dd.coverage_confidence
         FROM developed_detections dd
         JOIN observed_techniques ot ON dd.observed_technique_id = ot.id
         JOIN techniques t ON ot.technique_id = t.external_id
@@ -128,6 +196,15 @@ def developed():
     
     conn.close()
     return render_template('developed.html', observed_techniques=observed_techniques, developed_detections=developed_detections)
+
+@app.route('/delete_detection/<int:detection_id>', methods=['POST'])
+def delete_detection(detection_id):
+    conn = sqlite3.connect('rules.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM developed_detections WHERE id = ?", (detection_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('developed'))
 
 @app.route('/dashboard')
 def dashboard():
