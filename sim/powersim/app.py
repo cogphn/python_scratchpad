@@ -153,5 +153,42 @@ def run_simulation():
     db.session.commit()
     return jsonify(batch_results)
 
+@app.route('/remediate', methods=['POST'])
+def remediate_attack():
+    global current_model
+    if not current_model:
+        return jsonify({"error": "No active simulation"}), 400
+    
+    # Restore all components (Turbine, Generator, Transformer)
+    current_model.turbine.remediate()
+    current_model.generator.remediate()
+    current_model.transformer.remediate()
+    
+    return jsonify({
+        "status": "Remediated", 
+        "generator_efficiency": float(current_model.generator.efficiency)
+    })
+
+@app.route('/update_efficiency', methods=['POST'])
+def update_efficiency():
+    global current_model
+    if not current_model:
+        return jsonify({"error": "No active simulation"}), 400
+    
+    data = request.get_json()
+    component = data.get('component')
+    value = float(data.get('value', 100)) / 100.0 # Convert 0-100 to 0.0-1.0
+    
+    if component == 'turbine':
+        current_model.turbine.efficiency = value
+    elif component == 'generator':
+        current_model.generator.efficiency = value
+    elif component == 'transformer':
+        current_model.transformer.efficiency = value
+    else:
+        return jsonify({"error": "Invalid component"}), 400
+        
+    return jsonify({"status": "Updated", "component": component, "new_efficiency": value})
+
 if __name__ == '__main__':
     app.run(host="0.0.0.0", debug=True, port=5003)
