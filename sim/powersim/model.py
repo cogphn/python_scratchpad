@@ -50,8 +50,9 @@ class ComponentAgent(mesa.Agent):
         super().__init__(model)
         if name:
             self.unique_id = name
-        self.is_on = True
+        self.base_efficiency = efficiency
         self.efficiency = efficiency
+        self.is_on = True
         self.is_tampered = False
 
     def toggle(self):
@@ -60,6 +61,11 @@ class ComponentAgent(mesa.Agent):
     def tamper(self, efficiency_drop):
         self.is_tampered = True
         self.efficiency = max(0, self.efficiency - efficiency_drop)
+
+    def remediate(self):
+        """Restore component to original efficiency."""
+        self.is_tampered = False
+        self.efficiency = self.base_efficiency
 
     def step(self):
         pass
