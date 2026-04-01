@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Power Plant Control Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        .controls { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        button { padding: 10px 18px; margin-right: 8px; cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: all 0.2s; }
+        button:disabled { background: #cbd5e0 !important; cursor: not-allowed; }
+        .btn-start { background: #2ecc71; color: white; }
+        .btn-step { background: #3498db; color: white; }
+        .btn-run { background: #9b59b6; color: white; }
+        .btn-attack { background: #e74c3c; color: white; }
+        .btn-start:hover { background: #27ae60; }
+        
+        .stats { display: flex; gap: 30px; margin-bottom: 20px; font-size: 1.1em; background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        .chart-container { height: 280px; margin-bottom: 40px; }
+        
+        .grid-section { display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); 
+            gap: 12px; 
+            width: 100%;
+            max-width: 650px; 
+            min-height: 400px; /* Ensure grid is always visible */
+        }
+        
+        .neighborhood { 
+            aspect-ratio: 1 / 1; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px; 
+            color: white; 
+            font-weight: bold; 
+            position: relative;
+            font-size: 0.85em;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .status-green { background: #2ecc71; border: 2px solid #27ae60; }
+        .status-orange { background: #f39c12; border: 2px solid #e67e22; }
+        .status-red { background: #e74c3c; border: 2px solid #c0392b; animation: pulse 1.5s infinite; }
+        
+        .critical-badge { position: absolute; top: 4px; right: 4px; background: rgba(255,215,0,0.9); color: #333; font-size: 0.65em; padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.98); opacity: 0.8; } 100% { transform: scale(1); } }
+        
+        .legend { display: flex; gap: 25px; margin-bottom: 20px; font-size: 0.95em; font-weight: 500; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .patch { width: 18px; height: 18px; border-radius: 4px; }
+        
+        #history { margin-top: 40px; border-top: 1px solid #eee; padding-top: 25px; }
+        .run-input { padding: 9px; width: 65px; border: 1px solid #cbd5e0; border-radius: 6px; text-align: center; }
+        small { font-weight: 400; opacity: 0.9; margin-top: 2px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Thermal Power Plant Control Interface</h1>
+        
+        <div class="controls">
+            <button class="btn-start" onclick="startSim()" id="btn-start">Start New Run</button>
+            <button class="btn-step" onclick="stepSim()" id="btn-step">Step</button>
+            
+            <span style="margin-left: 15px; border-left: 2px solid #eee; padding-left: 15px;">
+                <input type="number" id="step-count" value="20" class="run-input">
+                <button class="btn-run" onclick="runNSteps()" id="btn-run">Run N Steps</button>
+            </span>
+
+            <button class="btn-attack" onclick="triggerAttack()" id="btn-attack" style="float: right;">Execute Attack</button>
+            <div id="status-text" style="margin-top: 12px; font-style: italic; color: #718096; font-size: 0.9em;">Ready to initialize simulation...</div>
+        </div>
+
+        <div class="stats">
+            <div><strong>Simulation Hour:</strong> <span id="hour">00:00</span></div>
+            <div><strong>Total Demand:</strong> <span id="demand">0</span> kW</div>
+            <div><strong>Net Generation:</strong> <span id="generated">0</span> kW</div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="powerChart"></canvas>
+        </div>
+
+        <div class="grid-section">
+            <div class="legend">
+                <div class="legend-item"><div class="patch status-green"></div> Fully Powered</div>
+                <div class="legend-item"><div class="patch status-orange"></div> Degraded Supply</div>
+                <div class="legend-item"><div class="patch status-red"></div> Grid Blackout</div>
+            </div>
+
+            <div id="neighborhood-grid" class="grid">
+                <!-- 4x5 Grid populated via updateUI -->
+            </div>
+        </div>
+
+        <div id="history">
+            <h3>Simulation History (SQLite)</h3>
+            <ul id="history-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        let powerChart;
+        let isSimActive = false;
+        let isBatchRunning = false;
+
+        function initChart() {
+            const ctx = document.getElementById('powerChart').getContext('2d');
+            powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Total Demand (kW)', borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', data: [], fill: true, tension: 0.3 },
+                        { label: 'Power Generated (kW)', borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.1)', data: [], fill: true, tension: 0.3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'kW' } },
+                        x: { title: { display: true, text: 'Time Step' } }
+                    }
+                }
+            });
+        }
+
+        async function startSim() {
+            try {
+                const res = await fetch('/start', { method: 'POST' });
+                const data = await res.json();
+                isSimActive = true;
+                document.getElementById('status-text').innerText = "Active Run ID: " + data.run_id;
+                
+                powerChart.data.labels = [];
+                powerChart.data.datasets[0].data = [];
+                powerChart.data.datasets[1].data = [];
+                powerChart.update();
+
+                // Clear and initialize UI state
+                updateUI({ neighborhoods: Array(20).fill({id: "0", power_received: 0, demand: 0, is_critical: false}), hour: 0, demand: 0, generated: 0 }, false);
+                loadHistory();
+            } catch (err) {
+                alert("Failed to connect to the simulation engine.");
+            }
+        }
+
+        async function stepSim() {
+            if (!isSimActive) return null;
+            try {
+                const res = await fetch('/step', { method: 'POST' });
+                const data = await res.json();
+                updateUI(data);
+                return data;
+            } catch (err) { return null; }
+        }
+
+        async function runNSteps() {
+            if (isBatchRunning || !isSimActive) return;
+            const count = parseInt(document.getElementById('step-count').value) || 20;
+            isBatchRunning = true;
+            toggleButtons(true);
+            document.getElementById('status-text').innerText = `Executing batch run (${count} steps)...`;
+
+            try {
+                const res = await fetch('/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count: count })
+                });
+
+                const batchData = await res.json();
+                batchData.forEach(stepData => {
+                    powerChart.data.labels.push(stepData.step);
+                    powerChart.data.datasets[0].data.push(stepData.demand);
+                    powerChart.data.datasets[1].data.push(stepData.generated);
+                });
+                powerChart.update();
+
+                const finalState = batchData[batchData.length - 1];
+                updateUI(finalState, false);
+                document.getElementById('status-text').innerText = "Batch sequence completed.";
+            } catch (err) {
+                alert("Batch run error.");
+            } finally {
+                isBatchRunning = false;
+                toggleButtons(false);
+                loadHistory();
+            }
+        }
+
+        function toggleButtons(disabled) {
+            document.getElementById('btn-start').disabled = disabled;
+            document.getElementById('btn-step').disabled = disabled;
+            document.getElementById('btn-run').disabled = disabled;
+            document.getElementById('btn-attack').disabled = disabled;
+        }
+
+        async function triggerAttack() {
+            if (!isSimActive) return;
+            const res = await fetch('/attack', { method: 'POST' });
+            const data = await res.json();
+            alert("SABOTAGE: Efficiency reduced to " + (data.efficiency * 100).toFixed(0) + "%");
+        }
+
+        function updateUI(data, updateChart = true) {
+            // Update Text Metrics
+            document.getElementById('hour').innerText = (data.hour || 0).toString().padStart(2, '0') + ":00";
+            document.getElementById('demand').innerText = (data.demand || 0).toFixed(1);
+            document.getElementById('generated').innerText = (data.generated || 0).toFixed(1);
+
+            // Update Chart
+            if (updateChart && data.step !== undefined) {
+                powerChart.data.labels.push(data.step);
+                powerChart.data.datasets[0].data.push(data.demand);
+                powerChart.data.datasets[1].data.push(data.generated);
+                powerChart.update('none');
+            }
+
+            // Update Grid
+            const grid = document.getElementById('neighborhood-grid');
+            if (data.neighborhoods && data.neighborhoods.length > 0) {
+                grid.innerHTML = ''; // Only clear if we have new data to show
+                data.neighborhoods.forEach(n => {
+                    const div = document.createElement('div');
+                    
+                    // Status Color Logic
+                    let statusClass = "status-red";
+                    if (n.power_received >= n.demand && n.demand > 0) {
+                        statusClass = "status-green";
+                    } else if (n.power_received > 0) {
+                        statusClass = "status-orange";
+                    }
+
+                    // Format Display ID (resilient to both "nb_X" and integer strings)
+                    let displayId = n.id;
+                    if (typeof n.id === 'string' && n.id.includes('_')) {
+                        displayId = n.id.split('_')[1];
+                    }
+
+                    div.className = `neighborhood ${statusClass}`;
+                    div.innerHTML = `NB ${displayId}<br><small>${Math.round(n.power_received)} kW</small>`;
+                    
+                    if (n.is_critical) {
+                        const badge = document.createElement('span');
+                        badge.className = 'critical-badge';
+                        badge.innerText = 'HOSP';
+                        div.appendChild(badge);
+                    }
+                    grid.appendChild(div);
+                });
+            }
+        }
+
+        async function loadHistory() {
+            const res = await fetch('/history');
+            const data = await res.json();
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            data.forEach(run => {
+                const li = document.createElement('li');
+                li.style.margin = "5px 0";
+                li.innerHTML = `Run #${run.id} (${new Date(run.start_time).toLocaleTimeString()}) <button onclick="replayRun(${run.id})">Replay</button>`;
+                list.appendChild(li);
+            });
+        }
+
+        async function replayRun(id) {
+            if (isBatchRunning) return;
+            const res = await fetch(`/replay/${id}`);
+            const steps = await res.json();
+            
+            powerChart.data.labels = [];
+            powerChart.data.datasets[0].data = [];
+            powerChart.data.datasets[1].data = [];
+            powerChart.update();
+
+            for (const step of steps) {
+                updateUI(step);
+                await new Promise(r => setTimeout(r, 80));
+            }
+        }
+
+        initChart();
+        loadHistory();
+    </script>
+</body>
+</html>
