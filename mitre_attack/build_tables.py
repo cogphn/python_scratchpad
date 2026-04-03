@@ -2,6 +2,7 @@ import json
 import pandas as pd
 import sqlite3
 from sqlalchemy import create_engine
+import requests
 
 
 def main():
@@ -9,10 +10,12 @@ def main():
 
     conn = create_engine("sqlite:///mitredata.db")
 
-    infile = "data/enterprise-attack-18.1.json"
+    print("[*] getting data...")
+    mitredata_stix_url = "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/refs/heads/master/enterprise-attack/enterprise-attack-18.1.json"
+    data = requests.get(mitredata_stix_url).json()
+
     print("  [*] reading input file...")
-    with open(infile) as inf:
-        data = json.loads(inf.read())
+    
     
     mitre_objects = data['objects']
 
