@@ -334,9 +334,25 @@
             data.forEach(run => {
                 const li = document.createElement('li');
                 li.style.margin = "5px 0";
-                li.innerHTML = `Run #${run.id} (${new Date(run.start_time).toLocaleTimeString()}) <button onclick="replayRun(${run.id})">Replay</button>`;
+                li.innerHTML = `Run #${run.id} (${new Date(run.start_time).toLocaleTimeString()}) 
+                    <button onclick="replayRun(${run.id})">Replay</button>
+                    <button class="btn-attack" style="padding: 5px 10px; margin-left: 5px;" onclick="deleteHistory(${run.id})">Delete</button>`;
                 list.appendChild(li);
             });
+        }
+
+        async function deleteHistory(id) {
+            if (!confirm(`Are you sure you want to delete simulation run #${id}?`)) return;
+            try {
+                const res = await fetch(`/delete_history/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    loadHistory();
+                } else {
+                    alert("Failed to delete history item.");
+                }
+            } catch (err) {
+                alert("Error connecting to server.");
+            }
         }
 
         async function replayRun(id) {
