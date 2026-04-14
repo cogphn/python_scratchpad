@@ -100,6 +100,21 @@ def replay_run(run_id):
         })
     return jsonify(data)
 
+@app.route('/delete_history/<int:run_id>', methods=['DELETE'])
+def delete_history(run_id):
+    run = SimulationRun.query.get(run_id)
+    if not run:
+        return jsonify({"error": "Run not found"}), 404
+    
+    # Delete associated steps first
+    SimulationStepRecord.query.filter_by(run_id=run_id).delete()
+    
+    # Delete the run itself
+    db.session.delete(run)
+    db.session.commit()
+    
+    return jsonify({"status": "Deleted"})
+
 @app.route('/run', methods=['POST'])
 def run_simulation():
     global current_model, current_run_id
@@ -112,6 +127,8 @@ def run_simulation():
     except (TypeError, ValueError):
         count = 20
 
+    if count > 50:
+        count = 50
     batch_results = []
 
     for _ in range(count):
