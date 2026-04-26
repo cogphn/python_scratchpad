@@ -1,7 +1,5 @@
 from openai import OpenAI
 
-
-
 def main():
     client = OpenAI(base_url="http://10.30.23.104:1234/v1", api_key="lm-studio")
 
@@ -9,7 +7,7 @@ def main():
     model="google/gemma-4-e2b",
     messages=[
         {"role": "system", "content": "You are a consultant. You always fact-check your responses. You are concise and factual"},
-        {"role": "user", "content": "summarize the field of data engineering in one paragraph. Generate three unique responses."}
+        {"role": "user", "content": "summarize the book paradise lost one paragraph. Generate three unique responses."}
     ],
     temperature=0.1,
     )
