@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTC Live Map View</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ttc: {
+                            yellow: '#FFC72C',
+                            green: '#00923F',
+                            red: '#DA291C',
+                            dark: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .pulse-live {
+            animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        /* Smooth transitions for train dots */
+        .train-dot {
+            transition: left 1s linear, opacity 0.5s ease;
+        }
+        
+        /* Pulse animation for boarding trains */
+        @keyframes train-boarding {
+            0%, 100% { transform: scale(1) translate(-50%, -50%); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            50% { transform: scale(1.25) translate(-50%, -50%); box-shadow: 0 0 8px 4px rgba(255, 255, 255, 0); }
+        }
+        .boarding-pulse {
+            animation: train-boarding 1.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-gray-900 border-b border-gray-800 px-6 pt-4 pb-0 shadow-md">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 pb-4">
+            <!-- Station Title and Icon -->
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div id="header-line-icon" class="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-2xl border-4 border-gray-950 shadow-inner transition-colors duration-300">
+                    T
+                </div>
+                <div>
+                    <h1 id="header-station-name" class="text-2xl font-bold tracking-tight flex items-center gap-2">
+                        Loading Map...
+                    </h1>
+                    <p id="header-line-name" class="text-sm text-gray-400">TTC Transit Station</p>
+                </div>
+            </div>
+            
+            <!-- Controls & Live Status -->
+            <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                <!-- Station Selector -->
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <label for="station-select" class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Station:</label>
+                    <select id="station-select" class="bg-gray-850 border border-gray-700 text-gray-200 text-sm rounded-lg focus:ring-ttc-yellow focus:border-ttc-yellow block w-full sm:w-48 p-2.5 bg-gray-800 hover:bg-gray-755 transition cursor-pointer">
+                        <option value="king_station">King Station (Line 1)</option>
+                        <option value="woodbine_station">Woodbine Station (Line 2)</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <div class="text-right hidden sm:block">
+                        <div id="live-clock" class="text-xl font-mono font-semibold text-gray-300">--:--:--</div>
+                        <div class="text-xs text-gray-500 flex items-center justify-end gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-green-500 pulse-live"></span>
+                            Live System
+                        </div>
+                    </div>
+                    <button id="refresh-btn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white p-3 rounded-lg border border-gray-700 transition duration-200 flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <div class="max-w-6xl mx-auto border-t border-gray-800/50">
+            <nav class="flex gap-6 -mb-px">
+                <a href="/" class="border-b-2 border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-700 px-1 py-3 text-sm font-semibold flex items-center gap-2 transition duration-150">
+                    <i class="fa-solid fa-list-ul"></i>
+                    Schedule
+                </a>
+                <a href="/map" class="border-b-2 border-ttc-yellow text-ttc-yellow px-1 py-3 text-sm font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                    Live Map
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-6 py-8">
+        <!-- Error Message -->
+        <div id="error-container" class="hidden mb-6 bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg flex items-center gap-3">
+            <i class="fa-solid fa-circle-exclamation text-red-400 text-lg"></i>
+            <div>
+                <span class="font-bold">Error:</span> <span id="error-message">Failed to load transit data.</span>
+            </div>
+        </div>
+
+        <!-- Live Map Visualization Container -->
+        <div class="bg-gray-900 rounded-2xl border border-gray-850 p-6 md:p-8 shadow-2xl mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-100 flex items-center gap-2">
+                        <i class="fa-solid fa-signal text-green-400 text-sm pulse-live"></i>
+                        Live Train Tracker
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Simulated train positions based on scheduled arrival countdowns.</p>
+                </div>
+                <!-- Legend -->
+                <div class="flex items-center gap-4 text-xs text-gray-400">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-white border border-gray-900"></span>
+                        <span>Train</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-green-500 pulse-live"></span>
+                        <span>Boarding</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Track Visualization Box -->
+            <div id="track-visualization" class="relative w-full h-64 bg-gray-950 rounded-xl border border-gray-800/80 overflow-hidden mb-6">
+                <!-- Track 1 (Top - Left to Right) -->
+                <div class="absolute top-[35%] left-0 right-0 h-1 bg-gray-800 shadow-inner"></div>
+                <div id="track-1-label" class="absolute top-[25%] left-6 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Northbound / Eastbound</div>
+                
+                <!-- Track 2 (Bottom - Right to Left) -->
+                <div class="absolute top-[65%] left-0 right-0 h-1 bg-gray-800 shadow-inner"></div>
+                <div id="track-2-label" class="absolute top-[72%] right-6 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right">Southbound / Westbound</div>
+
+                <!-- Station Markers (Pills) -->
+                <!-- Left Station (Previous/Next depending on track) -->
+                <div id="station-left" class="absolute top-[22%] bottom-[22%] left-[15%] w-3 bg-gray-700 rounded-full border border-gray-950 flex flex-col justify-between py-1 transition-all duration-500">
+                    <span class="w-1 h-1 bg-gray-950 rounded-full mx-auto"></span>
+                    <span class="w-1 h-1 bg-gray-950 rounded-full mx-auto"></span>
+                </div>
+                <div id="station-left-name" class="absolute top-[12%] left-[15%] -translate-x-1/2 text-xs font-bold text-gray-400 tracking-wide text-center w-24 truncate">Prev</div>
+
+                <!-- Center Station (Current Selected Station) -->
+                <div id="station-center" class="absolute top-[16%] bottom-[16%] left-[50%] -translate-x-1/2 w-4 bg-white rounded-full border-4 border-gray-950 shadow-lg transition-all duration-500"></div>
+                <div id="station-center-name" class="absolute top-[5%] left-[50%] -translate-x-1/2 text-sm font-black text-white tracking-widest text-center w-32 uppercase filter drop-shadow">King</div>
+
+                <!-- Right Station (Next/Previous depending on track) -->
+                <div id="station-right" class="absolute top-[22%] bottom-[22%] left-[85%] w-3 bg-gray-700 rounded-full border border-gray-950 flex flex-col justify-between py-1 transition-all duration-500">
+                    <span class="w-1 h-1 bg-gray-950 rounded-full mx-auto"></span>
+                    <span class="w-1 h-1 bg-gray-950 rounded-full mx-auto"></span>
+                </div>
+                <div id="station-right-name" class="absolute top-[12%] left-[85%] -translate-x-1/2 text-xs font-bold text-gray-400 tracking-wide text-center w-24 truncate">Next</div>
+
+                <!-- Train Dots Container (Dynamic) -->
+                <div id="trains-layer" class="absolute inset-0 pointer-events-none">
+                    <!-- Trains will be injected here as absolute divs -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Connecting Bus Tracker (Shown if buses exist) -->
+        <div id="bus-tracker-section" class="mb-10 hidden">
+            <h3 class="text-xs font-semibold text-gray-400 mb-4 tracking-wider uppercase">Live Bus Terminal Tracker</h3>
+            <div id="bus-terminal" class="bg-gray-900 rounded-2xl border border-gray-850 p-6 shadow-xl">
+                <p class="text-xs text-gray-400 mb-6">Buses arriving at their respective bays. Dots slide into the bay as they arrive.</p>
+                <div id="bus-bays-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Dynamically populated bus bay tracks -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Info Panel -->
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Next Arrivals Quick List -->
+            <div class="bg-gray-900 rounded-2xl border border-gray-800 p-6 shadow-lg">
+                <h3 class="text-sm font-semibold text-gray-400 mb-4 tracking-wider uppercase">Next Arrivals</h3>
+                <div id="quick-arrivals-list" class="space-y-3">
+                    <!-- Dynamic quick list -->
+                </div>
+            </div>
+
+            <!-- Station Entrances -->
+            <div class="bg-gray-900 rounded-2xl border border-gray-800 p-6 shadow-lg">
+                <h3 class="text-sm font-semibold text-gray-400 mb-4 tracking-wider uppercase">Station Layout</h3>
+                <div id="entrances-grid" class="grid grid-cols-2 gap-3">
+                    <!-- Dynamically populated entrances -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-950 border-t border-gray-900 py-6 px-6 text-center text-xs text-gray-600">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p>Data sourced from <a href="https://myttc.ca" target="_blank" class="hover:text-gray-400 underline transition font-medium">myttc.ca</a>. Not affiliated with the TTC.</p>
+            <p id="last-updated-text">Last updated: Never</p>
+        </div>
+    </footer>
+
+    <script>
+        // Station Configurations (adjacent stations for map rendering)
+        const STATION_MAP_CONFIGS = {
+            'king_station': {
+                name: 'King',
+                lineUri: 'yonge-university-spadina_subway',
+                leftStationName: 'Union',
+                rightStationName: 'Queen',
+                track1Label: 'Northbound to Finch',
+                track2Label: 'Southbound to Downsview',
+                isSubwayOnly: true
+            },
+            'woodbine_station': {
+                name: 'Woodbine',
+                lineUri: 'bloor-danforth_subway',
+                leftStationName: 'Coxwell',
+                rightStationName: 'Main Street',
+                track1Label: 'Eastbound to Kennedy',
+                track2Label: 'Westbound to Kipling',
+                isSubwayOnly: false
+            }
+        };
+
+        // Line configurations & styling
+        const LINE_CONFIGS = {
+            'yonge-university-spadina_subway': {
+                number: '1',
+                name: 'Yonge-University Line',
+                colorClass: 'bg-[#FFC72C] text-gray-950',
+                borderClass: 'border-[#FFC72C]',
+                textClass: 'text-[#FFC72C]',
+                accentColor: '#FFC72C'
+            },
+            'bloor-danforth_subway': {
+                number: '2',
+                name: 'Bloor-Danforth Line',
+                colorClass: 'bg-[#00923F] text-white',
+                borderClass: 'border-[#00923F]',
+                textClass: 'text-[#00923F]',
+                accentColor: '#00923F'
+            },
+            'default': {
+                number: 'T',
+                name: 'TTC Transit',
+                colorClass: 'bg-red-600 text-white',
+                borderClass: 'border-red-600',
+                textClass: 'text-red-500',
+                accentColor: '#DA291C'
+            }
+        };
+
+        // Travel times in seconds for simulation
+        const TRAVEL_TIME = 180; // 3 minutes between stations
+        const BOARDING_TIME = 20; // 20 seconds boarding at station
+
+        // State
+        let currentStation = 'king_station';
+        let stationData = null;
+        let lastFetchTime = null;
+        
+        // Local simulation state
+        let localTrains = []; // Array of train objects for local decrementing and rendering
+        let localBuses = [];  // Array of bus objects
+        let simulationInterval = null;
+
+        // Elements
+        const stationSelect = document.getElementById('station-select');
+        const trainsLayer = document.getElementById('trains-layer');
+        const entrancesGrid = document.getElementById('entrances-grid');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const lastUpdatedText = document.getElementById('last-updated-text');
+        const liveClock = document.getElementById('live-clock');
+        const quickArrivalsList = document.getElementById('quick-arrivals-list');
+        
+        // Map elements
+        const stationLeft = document.getElementById('station-left');
+        const stationCenter = document.getElementById('station-center');
+        const stationRight = document.getElementById('station-right');
+        const stationLeftName = document.getElementById('station-left-name');
+        const stationCenterName = document.getElementById('station-center-name');
+        const stationRightName = document.getElementById('station-right-name');
+        const track1Label = document.getElementById('track-1-label');
+        const track2Label = document.getElementById('track-2-label');
+
+        // Bus elements
+        const busTrackerSection = document.getElementById('bus-tracker-section');
+        const busBaysGrid = document.getElementById('bus-bays-grid');
+
+        // Header Elements
+        const headerLineIcon = document.getElementById('header-line-icon');
+        const headerStationName = document.getElementById('header-station-name');
+        const headerLineName = document.getElementById('header-line-name');
+
+        // Live Clock
+        function updateClock() {
+            const now = new Date();
+            liveClock.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Fetch Data
+        async function fetchData() {
+            refreshBtn.disabled = true;
+            refreshBtn.querySelector('i').classList.add('fa-spin');
+            
+            try {
+                const response = await fetch(`/api/data/${currentStation}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                stationData = await response.json();
+                lastFetchTime = new Date();
+                
+                errorContainer.classList.add('hidden');
+                
+                // Initialize/Sync local simulation
+                initSimulation();
+                renderStaticElements();
+                updateSimulation(); // Run immediate render
+            } catch (error) {
+                console.error("Could not fetch data:", error);
+                errorMessage.textContent = `Failed to sync with TTC servers: ${error.message}`;
+                errorContainer.classList.remove('hidden');
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.querySelector('i').classList.remove('fa-spin');
+            }
+        }
+
+        // Initialize local simulation state from fetched data
+        function initSimulation() {
+            if (!stationData) return;
+
+            const stops = stationData.stops || [];
+            const referenceTime = stationData.time;
+
+            // Clear old local state
+            localTrains = [];
+            localBuses = [];
+
+            stops.forEach(stop => {
+                const isSubwayPlatform = stop.name.includes('Platform');
+                const isBusBay = stop.name.includes('Bus Bay') || stop.uri.includes('bus_bay');
+
+                if (stop.routes && stop.routes.length > 0) {
+                    stop.routes.forEach(route => {
+                        if (route.stop_times && route.stop_times.length > 0) {
+                            route.stop_times.forEach((time, index) => {
+                                const diffSeconds = time.departure_timestamp - referenceTime;
+                                
+                                // Unique ID for DOM element tracking
+                                const id = `${stop.uri}_${route.uri}_${index}_${time.departure_timestamp}`;
+
+                                if (isSubwayPlatform) {
+                                    const isNorthbound = stop.uri.includes('northbound') || stop.uri.includes('eastbound');
+                                    localTrains.push({
+                                        id: id,
+                                        destination: time.shape.replace(/.*To /, '').replace(' Station', ''),
+                                        departureTime: time.departure_time,
+                                        diffSeconds: diffSeconds,
+                                        isTrack1: isNorthbound, // Track 1 is North/East (Left-to-Right)
+                                        routeUri: route.uri,
+                                        initialDiffSeconds: diffSeconds
+                                    });
+                                } else if (isBusBay) {
+                                    localBuses.push({
+                                        id: id,
+                                        routeNumber: route.name,
+                                        destination: time.shape.substring(time.shape.indexOf('To ')).replace('To ', ''),
+                                        departureTime: time.departure_time,
+                                        diffSeconds: diffSeconds,
+                                        bayName: stop.name.replace('Station ', ''),
+                                        initialDiffSeconds: diffSeconds
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Start simulation loop if not already running
+            if (simulationInterval) clearInterval(simulationInterval);
+            simulationInterval = setInterval(runSimulationStep, 1000);
+        }
+
+        // Run every second: decrement countdowns and update positions
+        function runSimulationStep() {
+            // Decrement subway trains
+            localTrains.forEach(train => {
+                train.diffSeconds -= 1;
+            });
+
+            // Decrement buses
+            localBuses.forEach(bus => {
+                bus.diffSeconds -= 1;
+            });
+
+            // Filter out trains/buses that have moved far past the station (e.g. 60 seconds past)
+            localTrains = localTrains.filter(t => t.diffSeconds > -60);
+            localBuses = localBuses.filter(b => b.diffSeconds > -60);
+
+            // Update visual elements
+            updateSimulation();
+        }
+
+        // Render elements that don't change every second (Header, names, entrances)
+        function renderStaticElements() {
+            if (!stationData) return;
+
+            const config = STATION_MAP_CONFIGS[currentStation];
+            const lineConfig = LINE_CONFIGS[config.lineUri] || LINE_CONFIGS.default;
+
+            // 1. Update Header
+            headerStationName.textContent = `${stationData.name} Map`;
+            headerLineName.textContent = lineConfig.name;
+            headerLineIcon.textContent = lineConfig.number;
+            headerLineIcon.className = `w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl border-4 border-gray-950 shadow-inner transition-colors duration-300 ${lineConfig.colorClass}`;
+            lastUpdatedText.textContent = `Last updated: ${lastFetchTime.toLocaleTimeString()}`;
+
+            // 2. Update Map Labels & Styles
+            stationCenterName.textContent = config.name;
+            stationLeftName.textContent = config.leftStationName;
+            stationRightName.textContent = config.rightStationName;
+            track1Label.textContent = config.track1Label;
+            track2Label.textContent = config.track2Label;
+
+            // Update station pill colors to match line
+            stationCenter.className = `absolute top-[16%] bottom-[16%] left-[50%] -translate-x-1/2 w-4 rounded-full border-4 border-gray-950 shadow-lg transition-all duration-500 ${lineConfig.colorClass}`;
+            stationLeft.className = `absolute top-[22%] bottom-[22%] left-[15%] w-3 rounded-full border border-gray-950 flex flex-col justify-between py-1 transition-all duration-500 ${lineConfig.colorClass}/80`;
+            stationRight.className = `absolute top-[22%] bottom-[22%] left-[85%] w-3 rounded-full border border-gray-950 flex flex-col justify-between py-1 transition-all duration-500 ${lineConfig.colorClass}/80`;
+
+            // 3. Render Entrances
+            entrancesGrid.innerHTML = '';
+            stationData.stops.forEach(stop => {
+                if (stop.name && !stop.name.includes('Platform') && !stop.name.includes('Mezzanine') && !stop.name.includes('Landing') && !stop.name.includes('Bus Bay')) {
+                    const div = document.createElement('div');
+                    div.className = 'bg-gray-800/40 border border-gray-800/60 px-3 py-2 rounded-xl text-xs text-gray-400 flex items-center gap-2';
+                    div.innerHTML = `
+                        <i class="fa-solid fa-door-open text-gray-600"></i>
+                        <span class="truncate">${stop.name.replace(stationData.name + ' ', '')}</span>
+                    `;
+                    entrancesGrid.appendChild(div);
+                }
+            });
+
+            // 4. Render Bus Bay Tracks if Woodbine
+            if (!config.isSubwayOnly && localBuses.length > 0) {
+                busTrackerSection.classList.remove('hidden');
+                renderBusTerminalBays();
+            } else {
+                busTrackerSection.classList.add('hidden');
+            }
+        }
+
+        // Render static bus bay tracks (only once per station load)
+        function renderBusTerminalBays() {
+            busBaysGrid.innerHTML = '';
+            
+            // Get unique bus routes
+            const uniqueRoutes = [...new Set(localBuses.map(b => b.routeNumber))];
+            
+            uniqueRoutes.forEach(routeNum => {
+                const bayDiv = document.createElement('div');
+                bayDiv.className = 'bg-gray-950 border border-gray-800 rounded-xl p-4 flex flex-col h-40 relative overflow-hidden';
+                
+                // Header
+                bayDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-2 z-10">
+                        <span class="text-xs font-bold text-gray-300">${routeNum} Terminal</span>
+                        <span class="text-[9px] bg-red-900/30 text-ttc-red font-bold px-1.5 py-0.5 rounded border border-red-500/20">BUS</span>
+                    </div>
+                    <!-- Vertical Track Line -->
+                    <div class="absolute top-[40%] bottom-[15%] left-[50%] -translate-x-1/2 w-1 bg-gray-800 rounded shadow-inner"></div>
+                    <!-- Bay Stop Circle at bottom -->
+                    <div class="absolute bottom-[10%] left-[50%] -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 border-2 border-gray-950 shadow z-10"></div>
+                    <!-- Container for bus dots -->
+                    <div id="bus-track-${routeNum.replace(/\s+/g, '')}" class="absolute inset-0 pointer-events-none"></div>
+                `;
+                busBaysGrid.appendChild(bayDiv);
+            });
+        }
+
+        // Update train positions and lists based on current simulated time
+        function updateSimulation() {
+            updateSubwayTrainsVisualization();
+            updateBusVisualization();
+            updateQuickArrivalsList();
+        }
+
+        // Calculate position and render subway dots
+        function updateSubwayTrainsVisualization() {
+            // Find or create train elements
+            localTrains.forEach(train => {
+                let trainEl = document.getElementById(train.id);
+                
+                if (!trainEl) {
+                    // Create new train dot
+                    trainEl = document.createElement('div');
+                    trainEl.id = train.id;
+                    trainEl.className = 'train-dot absolute w-5 h-5 rounded-full border-2 border-gray-950 shadow-md flex items-center justify-center z-20 transition-all duration-1000';
+                    
+                    // Style based on line
+                    const config = STATION_MAP_CONFIGS[currentStation];
+                    const lineConfig = LINE_CONFIGS[config.lineUri] || LINE_CONFIGS.default;
+                    trainEl.style.backgroundColor = 'white'; // Contrast train dot
+                    trainEl.style.borderColor = lineConfig.accentColor;
+                    
+                    // Direction indicator inside dot
+                    const icon = document.createElement('i');
+                    icon.className = train.isTrack1 
+                        ? 'fa-solid fa-caret-right text-[10px]' 
+                        : 'fa-solid fa-caret-left text-[10px]';
+                    icon.style.color = lineConfig.accentColor;
+                    trainEl.appendChild(icon);
+                    
+                    trainsLayer.appendChild(trainEl);
+                }
+
+                // Calculate position percentage (left: 0% to 100%)
+                let leftPercent = -10; // Start off-screen
+                let opacity = 0;
+                let isBoarding = false;
+
+                const diff = train.diffSeconds;
+
+                // Track 1: Left to Right (Union -> King -> Queen)
+                // Left Station = 15%, Center = 50%, Right = 85%
+                if (train.isTrack1) {
+                    if (diff > TRAVEL_TIME) {
+                        // Beyond previous station, slide in from far left
+                        leftPercent = 5;
+                        opacity = 0.3;
+                    } else if (diff >= 0) {
+                        // Between Left (15%) and Center (50%)
+                        const progress = 1 - (diff / TRAVEL_TIME); // 0 to 1
+                        leftPercent = 15 + (35 * progress);
+                        opacity = 1;
+                    } else if (diff >= -BOARDING_TIME) {
+                        // Boarding at Center (50%)
+                        leftPercent = 50;
+                        opacity = 1;
+                        isBoarding = true;
+                    } else {
+                        // Leaving Center (50%) towards Right (85%)
+                        const progress = Math.min(1, (-diff - BOARDING_TIME) / TRAVEL_TIME); // 0 to 1
+                        leftPercent = 50 + (35 * progress);
+                        opacity = progress >= 0.9 ? 0 : 1; // Fade out as it reaches next station
+                    }
+                } 
+                // Track 2: Right to Left (Queen -> King -> Union)
+                // Right Station = 85%, Center = 50%, Left = 15%
+                else {
+                    if (diff > TRAVEL_TIME) {
+                        // Beyond previous station
+                        leftPercent = 95;
+                        opacity = 0.3;
+                    } else if (diff >= 0) {
+                        // Between Right (85%) and Center (50%)
+                        const progress = 1 - (diff / TRAVEL_TIME);
+                        leftPercent = 85 - (35 * progress);
+                        opacity = 1;
+                    } else if (diff >= -BOARDING_TIME) {
+                        // Boarding at Center (50%)
+                        leftPercent = 50;
+                        opacity = 1;
+                        isBoarding = true;
+                    } else {
+                        // Leaving Center (50%) towards Left (15%)
+                        const progress = Math.min(1, (-diff - BOARDING_TIME) / TRAVEL_TIME);
+                        leftPercent = 50 - (35 * progress);
+                        opacity = progress >= 0.9 ? 0 : 1;
+                    }
+                }
+
+                // Apply styles
+                trainEl.style.left = `${leftPercent}%`;
+                trainEl.style.top = train.isTrack1 ? '35%' : '65%';
+                trainEl.style.transform = 'translate(-50%, -50%)';
+                trainEl.style.opacity = opacity;
+
+                // Handle boarding animation
+                if (isBoarding) {
+                    trainEl.classList.add('boarding-pulse');
+                    trainEl.style.backgroundColor = '#22c55e'; // Green for boarding
+                    trainEl.querySelector('i').style.color = '#fff';
+                    trainEl.querySelector('i').className = 'fa-solid fa-door-open text-[9px]';
+                } else {
+                    trainEl.classList.remove('boarding-pulse');
+                    trainEl.style.backgroundColor = 'white';
+                    
+                    const config = STATION_MAP_CONFIGS[currentStation];
+                    const lineConfig = LINE_CONFIGS[config.lineUri] || LINE_CONFIGS.default;
+                    trainEl.querySelector('i').style.color = lineConfig.accentColor;
+                    trainEl.querySelector('i').className = train.isTrack1 
+                        ? 'fa-solid fa-caret-right text-[10px]' 
+                        : 'fa-solid fa-caret-left text-[10px]';
+                }
+            });
+
+            // Clean up removed train elements from DOM
+            const activeIds = new Set(localTrains.map(t => t.id));
+            const childNodes = Array.from(trainsLayer.childNodes);
+            childNodes.forEach(node => {
+                if (node.id && !activeIds.has(node.id)) {
+                    node.style.opacity = 0;
+                    setTimeout(() => {
+                        if (node.parentNode === trainsLayer) {
+                            trainsLayer.removeChild(node);
+                        }
+                    }, 500); // Wait for fade out
+                }
+            });
+        }
+
+        // Calculate position and render bus dots in terminal bays
+        function updateBusVisualization() {
+            if (STATION_MAP_CONFIGS[currentStation].isSubwayOnly) return;
+
+            localBuses.forEach(bus => {
+                const trackId = `bus-track-${bus.routeNumber.replace(/\s+/g, '')}`;
+                const trackEl = document.getElementById(trackId);
+                if (!trackEl) return;
+
+                let busEl = document.getElementById(bus.id);
+                if (!busEl) {
+                    busEl = document.createElement('div');
+                    busEl.id = bus.id;
+                    busEl.className = 'absolute w-3.5 h-3.5 rounded-full bg-red-600 border border-white shadow-sm flex items-center justify-center z-25 transition-all duration-1000';
+                    busEl.innerHTML = '<i class="fa-solid fa-bus text-[8px] text-white"></i>';
+                    trackEl.appendChild(busEl);
+                }
+
+                const diff = bus.diffSeconds;
+                let topPercent = -10; // Off-screen top
+                let opacity = 0;
+
+                // Bus moves vertically from top (40%) to bottom (90% - arriving circle)
+                // Let's say it takes 90 seconds to travel this visual path
+                const BUS_TRAVEL_TIME = 90;
+                const BUS_BOARDING_TIME = 25;
+
+                if (diff > BUS_TRAVEL_TIME) {
+                    topPercent = 35;
+                    opacity = 0.2;
+                } else if (diff >= 0) {
+                    const progress = 1 - (diff / BUS_TRAVEL_TIME);
+                    topPercent = 40 + (42 * progress); // Move from 40% to 82%
+                    opacity = 1;
+                } else if (diff >= -BUS_BOARDING_TIME) {
+                    // Parked at bay
+                    topPercent = 85;
+                    opacity = 1;
+                    busEl.style.backgroundColor = '#22c55e'; // Green boarding
+                } else {
+                    // Leaving bay (drive off screen bottom)
+                    const progress = Math.min(1, (-diff - BOARDING_TIME) / 30);
+                    topPercent = 85 + (20 * progress);
+                    opacity = 1 - progress;
+                }
+
+                busEl.style.top = `${topPercent}%`;
+                busEl.style.left = '50%';
+                busEl.style.transform = 'translate(-50%, -50%)';
+                busEl.style.opacity = opacity;
+                
+                if (diff >= 0 && diff <= BUS_TRAVEL_TIME) {
+                    busEl.style.backgroundColor = '#ef4444'; // Standard red while moving
+                }
+            });
+
+            // Clean up old bus elements
+            const activeIds = new Set(localBuses.map(b => b.id));
+            const busContainers = document.querySelectorAll('[id^="bus-track-"]');
+            busContainers.forEach(container => {
+                const dots = Array.from(container.childNodes);
+                dots.forEach(dot => {
+                    if (dot.id && !activeIds.has(dot.id)) {
+                        dot.style.opacity = 0;
+                        setTimeout(() => {
+                            if (dot.parentNode === container) {
+                                container.removeChild(dot);
+                            }
+                        }, 500);
+                    }
+                });
+            });
+        }
+
+        // Update the textual quick list below the map
+        function updateQuickArrivalsList() {
+            quickArrivalsList.innerHTML = '';
+
+            // Combine and sort next arrivals (subway only for primary, or both)
+            const allItems = [];
+
+            localTrains.forEach(t => {
+                if (t.diffSeconds > -BOARDING_TIME) {
+                    allItems.push({
+                        type: 'subway',
+                        route: `Line ${LINE_CONFIGS[t.routeUri]?.number || 'Subway'}`,
+                        destination: t.destination,
+                        diffSeconds: t.diffSeconds,
+                        timeStr: t.departureTime,
+                        color: LINE_CONFIGS[t.routeUri]?.accentColor || '#ef4444'
+                    });
+                }
+            });
+
+            localBuses.forEach(b => {
+                if (b.diffSeconds > -BOARDING_TIME) {
+                    allItems.push({
+                        type: 'bus',
+                        route: b.routeNumber,
+                        destination: b.destination,
+                        diffSeconds: b.diffSeconds,
+                        timeStr: b.departureTime,
+                        color: '#ef4444'
+                    });
+                }
+            });
+
+            // Sort by arrival time (closest first)
+            allItems.sort((a, b) => a.diffSeconds - b.diffSeconds);
+
+            if (allItems.length === 0) {
+                quickArrivalsList.innerHTML = '<div class="text-center py-6 text-xs text-gray-500">No upcoming arrivals</div>';
+                return;
+            }
+
+            // Show top 5
+            allItems.slice(0, 5).forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-gray-800/20 border border-gray-800/40 px-4 py-2.5 rounded-xl text-sm';
+                
+                let timeText = '';
+                let timeClass = '';
+
+                if (item.diffSeconds <= 0 && item.diffSeconds >= -BOARDING_TIME) {
+                    timeText = 'Boarding';
+                    timeClass = 'text-green-400 font-bold pulse-live';
+                } else if (item.diffSeconds > 0) {
+                    const mins = Math.round(item.diffSeconds / 60);
+                    timeText = mins === 0 ? 'Arriving' : `${mins} min`;
+                    timeClass = mins === 0 ? 'text-green-400 font-bold' : 'text-gray-200 font-semibold';
+                }
+
+                const icon = item.type === 'subway' ? 'fa-subway' : 'fa-bus';
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid ${icon} text-xs" style="color: ${item.color}"></i>
+                        <div>
+                            <span class="font-bold text-white">${item.route}</span>
+                            <span class="text-xs text-gray-400 ml-1.5">to ${item.destination}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="${timeClass} font-mono">${timeText}</span>
+                        <span class="text-[10px] text-gray-500 block">${item.timeStr}</span>
+                    </div>
+                `;
+                quickArrivalsList.appendChild(div);
+            });
+        }
+
+        // Handle Station Change
+        stationSelect.addEventListener('change', (e) => {
+            currentStation = e.target.value;
+            
+            // Clear map layers
+            trainsLayer.innerHTML = '';
+            quickArrivalsList.innerHTML = '';
+            entrancesGrid.innerHTML = '';
+            headerStationName.textContent = 'Loading Map...';
+            
+            // Reset bus terminal if visible
+            busTrackerSection.classList.add('hidden');
+            busBaysGrid.innerHTML = '';
+
+            fetchData();
+        });
+
+        // Event Listeners
+        refreshBtn.addEventListener('click', fetchData);
+
+        // Initial Load
+        fetchData();
+
+        // Auto Refresh API every 30 seconds
+        setInterval(fetchData, 30000);
+    </script>
+</body>
+</html>
