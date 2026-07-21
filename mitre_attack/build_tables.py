@@ -8,10 +8,10 @@ import requests
 def main():
     # TODO: obviously rewrite 
 
-    conn = create_engine("sqlite:///mitredata.db")
+    conn = create_engine("sqlite:///rules.db")
 
     print("[*] getting data...")
-    mitredata_stix_url = "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/refs/heads/master/enterprise-attack/enterprise-attack-18.1.json"
+    mitredata_stix_url = "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/refs/heads/master/enterprise-attack/enterprise-attack-19.1.json"
     data = requests.get(mitredata_stix_url).json()
 
     print("  [*] reading input file...")
@@ -22,7 +22,8 @@ def main():
     tactic_data = [x for x in mitre_objects if x['type']=='x-mitre-tactic']
     technique_data = [x for x in mitre_objects if x['type']=='attack-pattern' and x['x_mitre_deprecated']==False]
     coa_data = [x for x in mitre_objects if x['type']=='course-of-action' and x['x_mitre_deprecated']==False and x['revoked']==False]
-    obj_relationships = [x for x in mitre_objects if x['type']=='relationship' and x['x_mitre_deprecated']==False]
+    #obj_relationships = [x for x in mitre_objects if x['type']=='relationship' and x['x_mitre_deprecated']==False]
+    obj_relationships = [x for x in mitre_objects if x['type']=='relationship']
     analytic_data = [x for x in mitre_objects if x['type']=='x-mitre-analytic']
     detection_data = [x for x in mitre_objects if x['type']=='x-mitre-detection-strategy' and x['x_mitre_deprecated']==False]
 
