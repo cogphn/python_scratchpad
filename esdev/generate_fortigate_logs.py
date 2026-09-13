@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""Synthetic Fortinet FortiGate Firewall Log Generator for Detection Rule Testing.
-
-Generates realistic timeseries data (90% baseline, 10% detection attack scenarios),
-maintains persistent CSV entity catalogs, and writes to Elasticsearch data streams.
-"""
-
 import argparse
 import datetime
 import json
@@ -25,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def load_env_defaults() -> Dict[str, str]:
     """Loads Elasticsearch and Kibana connection defaults from .env or .env_googledev."""
     config = {}
-    for env_file in [".env_googledev", ".env"]:
+    for env_file in [".env"]:
         if os.path.exists(env_file):
             try:
                 with open(env_file, "r", encoding="utf-8") as f:
@@ -42,12 +35,28 @@ def load_env_defaults() -> Dict[str, str]:
 def parse_arguments() -> argparse.Namespace:
     """Parses command line arguments."""
     env_defaults = load_env_defaults()
-    default_es_url = os.environ.get("ES_URL", "https://localhost:9200")
-    default_api_key = env_defaults.get("KIBANA_API_KEY", os.environ.get("ES_API_KEY", ""))
+    
+    default_es_url = env_defaults['ES_URL']
+    default_api_key = env_defaults.get("KIBANA_API_KEY")
+
 
     parser = argparse.ArgumentParser(
         description="Synthetic Fortinet FortiGate Log Generator for Elastic Security Detection Testing",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--es_url", '-e',
+        type=str,
+        default=default_es_url,
+        help="es url"
+    )
+
+    parser.add_argument(
+        "--api_key", "-k",
+        type=str,
+        default=default_api_key,
+        help="kibana api key"
     )
 
     parser.add_argument(
@@ -107,16 +116,7 @@ def parse_arguments() -> argparse.Namespace:
         default="data/entities",
         help="Directory containing persistent CSV entity catalogs"
     )
-    parser.add_argument(
-        "--es-url",
-        default=default_es_url,
-        help="Elasticsearch base URL"
-    )
-    parser.add_argument(
-        "--api-key",
-        default=default_api_key,
-        help="Elasticsearch API Key for authentication"
-    )
+    
     parser.add_argument(
         "--insecure",
         action="store_true",
@@ -158,6 +158,7 @@ class FortigateDataGenerator:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        
         self.entity_manager = EntityManager(
             entities_dir=args.entities_dir,
             allow_new_entities=args.allow_new_entities
