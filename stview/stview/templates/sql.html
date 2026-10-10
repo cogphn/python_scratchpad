@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}SQL · {{ db.display_name }}{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{{ url_for('ui.databases') }}">Databases</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('ui.database', ref=ref) }}">{{ db.display_name }}</a></li>
+  <li class="breadcrumb-item active">SQL</li>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="page-title h3"><i data-feather="terminal"></i> SQL console</h1>
+  <div class="page-subtitle">Run a SQL statement against <strong>{{ db.display_name }}</strong>. Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run.</div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-9">
+    <div class="card mb-3">
+      <form id="sqlForm" method="post" action="{{ url_for('ui.sql', ref=ref) }}">
+        <div class="card-body pb-2">
+          <textarea class="form-control code" name="query" placeholder="SELECT * FROM my_table LIMIT 50" spellcheck="false" autofocus>{{ query }}</textarea>
+        </div>
+        <div class="card-body pt-0 d-flex align-items-center gap-2">
+          <button class="btn btn-primary" type="submit"><i data-feather="play"></i> Run</button>
+          <button class="btn btn-outline-secondary" type="button" onclick="this.form.querySelector('textarea').value=''"><i data-feather="x"></i> Clear</button>
+          <span class="ms-auto small text-secondary">One statement per run. <code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> are supported; writes and private tables require the owner token.</span>
+        </div>
+      </form>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger d-flex gap-2"><i data-feather="alert-octagon"></i><div><strong>Query failed.</strong><pre class="mb-0 mt-1 small" style="white-space:pre-wrap">{{ error }}</pre></div></div>
+    {% endif %}
+
+    {% for rs in results %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <i data-feather="layers"></i> Result {{ loop.index }}
+        <span class="badge text-bg-light">{{ rs.row_count }} row{{ '' if rs.row_count == 1 else 's' }}</span>
+        {% if rs.duration_micros is not none %}<span class="text-secondary fw-normal small">· {{ '%.2f'|format(rs.duration_micros / 1000) }} ms</span>{% endif %}
+      </div>
+      {% if rs.columns %}
+      <div class="table-wrap" style="max-height:60vh">
+        <table class="table table-hover table-data">
+          <thead><tr>{% for c in rs.columns %}<th>{{ c }}<div class="type-tag fw-normal" style="text-transform:none">{{ rs.types[loop.index0] }}</div></th>{% endfor %}</tr></thead>
+          <tbody>{% for row in rs.rows %}<tr>{% for v in row %}<td title="click to expand">{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-secondary small">Statement executed (no result set).</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card">
+      <div class="card-header"><i data-feather="grid"></i> Tables</div>
+      {% if schema and schema.tables %}
+      <div class="list-group list-group-flush small" style="max-height:70vh;overflow:auto">
+        {% for t in schema.tables %}
+        <a href="#" class="list-group-item list-group-item-action" data-sql="SELECT * FROM {{ t.name }} LIMIT 100" title="Run SELECT * FROM {{ t.name }}">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="mono fw-semibold">{{ t.name }}</span>
+            <i data-feather="{{ 'unlock' if t.is_public else 'lock' }}" style="width:12px;height:12px" class="text-secondary"></i>
+          </div>
+          <div class="type-tag text-truncate">{% for c in t.columns %}{{ c.name }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card-body text-secondary small">Schema unavailable.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
