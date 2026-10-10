@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Logs · {{ db.display_name }}{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{{ url_for('ui.databases') }}">Databases</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('ui.database', ref=ref) }}">{{ db.display_name }}</a></li>
+  <li class="breadcrumb-item active">Logs</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-title h3"><i data-feather="file-text"></i> Module logs</h1>
+    <div class="page-subtitle">Most recent log lines emitted by <strong>{{ db.display_name }}</strong> (newest first).</div>
+  </div>
+  <form class="d-flex align-items-center gap-2" method="get">
+    <label class="small text-secondary">Lines</label>
+    <select class="form-select form-select-sm" name="n" onchange="this.form.submit()" style="width:auto">
+      {% for n in (50, 100, 200, 500, 1000, 5000) %}<option value="{{ n }}" {% if n == num %}selected{% endif %}>{{ n }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline-secondary btn-sm" type="submit"><i data-feather="refresh-cw"></i> Refresh</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header"><i data-feather="list"></i> {{ entries|length }} entries
+    <input class="form-control form-control-sm ms-auto" style="max-width:260px" placeholder="Filter…" id="logFilter">
+  </div>
+  {% if error %}
+    <div class="alert alert-danger m-3 d-flex gap-2"><i data-feather="alert-octagon"></i><div><strong>Could not fetch logs.</strong> {{ error }}<div class="small mt-1">Logs are only available to the database owner.</div></div></div>
+  {% elif entries %}
+    <div id="logList">
+    {% for e in entries %}
+      {% set level = (e.get('level') or 'info')|lower %}
+      <div class="log-line">
+        <span class="text-secondary">{{ e.get('ts')|log_time }}</span>
+        <span class="log-level {{ level }}">{{ level }}</span>
+        <span class="log-msg">{{ e.get('message', '') }}{% if e.get('target') %} <span class="text-secondary">· {{ e.get('target') }}{% if e.get('filename') %}:{{ e.get('line_number') }}{% endif %}</span>{% endif %}</span>
+      </div>
+    {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty"><i data-feather="file-text"></i><div class="fw-semibold">No log entries</div></div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const f = document.getElementById('logFilter');
+  if (f) f.addEventListener('input', () => {
+    const q = f.value.toLowerCase();
+    document.querySelectorAll('#logList .log-line').forEach(l => l.style.display = !q || l.textContent.toLowerCase().includes(q) ? '' : 'none');
+  });
+</script>
+{% endblock %}
