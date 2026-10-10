@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Publish{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Publish</li>{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="page-title h3"><i data-feather="upload-cloud"></i> Publish a module</h1>
+  <div class="page-subtitle">Upload a compiled module to create a new database or update an existing one.</div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card">
+      <form method="post" enctype="multipart/form-data">
+        <div class="card-body">
+          <div class="dropzone mb-3" id="dropzone">
+            <i data-feather="package"></i>
+            <div class="fw-semibold mt-2 dz-label">Drop a module here or click to browse</div>
+            <div class="small text-secondary">Rust / C# → <span class="mono">*.wasm</span> &nbsp;·&nbsp; TypeScript → <span class="mono">dist/bundle.js</span></div>
+            <input type="file" name="module" accept=".wasm,.js,application/wasm,text/javascript" class="d-none" required>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Database name <span class="text-secondary fw-normal">(optional)</span></label>
+              <input class="form-control mono" name="name" placeholder="my-database" pattern="[A-Za-z0-9_\-]+">
+              <div class="form-text">Leave blank to create an anonymous database identified only by its identity. If the name exists and you own it, the module is updated in place.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Host type</label>
+              <select class="form-select" name="host_type">
+                <option value="auto" selected>Auto-detect</option>
+                <option value="Wasm">Wasm</option>
+                <option value="Js">Js (TypeScript)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="clear" id="clear">
+            <label class="form-check-label" for="clear">Clear existing data <span class="text-danger small">(destructive – wipes all tables when updating)</span></label>
+          </div>
+        </div>
+        <div class="card-body pt-0">
+          <button class="btn btn-primary" type="submit"><i data-feather="upload-cloud"></i> Publish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i data-feather="help-circle"></i> Building a module</div>
+      <div class="card-body small">
+        <p>With the <code>spacetime</code> CLI installed, scaffold and build a module:</p>
+<pre class="bg-body-tertiary p-2 rounded mono">spacetime init --lang typescript --server-only my_module
+cd my_module/spacetimedb &amp;&amp; npm install
+spacetime build        # → dist/bundle.js</pre>
+        <p>Rust modules (<code>--lang rust</code>) build to <span class="mono">target/wasm32-unknown-unknown/release/*.wasm</span>.</p>
+        <p class="mb-0">Publishing here is equivalent to <code>spacetime publish -s local &lt;name&gt;</code> using this app's identity ({{ settings.identity|short_id(10) if settings.identity else 'none' }}).</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
