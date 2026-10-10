@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">{{ title }}</li>{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:720px">
+  <div class="card-body text-center py-5">
+    <div class="stat-icon danger mx-auto mb-3" style="width:56px;height:56px"><i data-feather="{{ 'search' if status == 404 else 'alert-octagon' }}"></i></div>
+    <h1 class="h4 fw-bold">{{ title }} <span class="text-secondary fw-normal">· {{ status }}</span></h1>
+    <p class="text-secondary mb-4" style="word-break:break-word">{{ message }}</p>
+    <div class="d-flex gap-2 justify-content-center">
+      <a class="btn btn-outline-secondary" href="javascript:history.back()"><i data-feather="arrow-left"></i> Back</a>
+      <a class="btn btn-primary" href="{{ url_for('ui.dashboard') }}"><i data-feather="home"></i> Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
