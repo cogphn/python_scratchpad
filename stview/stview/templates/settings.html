@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Settings</li>{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="page-title h3"><i data-feather="settings"></i> Settings</h1>
+  <div class="page-subtitle">Connection and identity used by stview. Stored in <span class="mono">~/.config/stview/config.json</span>.</div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header"><i data-feather="server"></i> Connection</div>
+      <form method="post" class="card-body">
+        <input type="hidden" name="action" value="save">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Server URL</label>
+          <div class="input-group">
+            <span class="input-group-text"><span class="status-dot {{ 'online' if online else 'offline' }}"></span></span>
+            <input class="form-control mono" name="host" value="{{ settings.host }}" placeholder="http://127.0.0.1:3000">
+          </div>
+          <div class="form-text">{{ 'Reachable' if online else 'Not reachable' }} – override with the <code>STVIEW_HOST</code> environment variable.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Auth token</label>
+          <textarea class="form-control mono small" name="token" rows="3" placeholder="Paste a Spacetime JWT to act as a different identity">{{ settings.token or '' }}</textarea>
+          <div class="form-text">Current source: <strong>{{ settings.token_source or 'none' }}</strong>. Override with <code>STVIEW_TOKEN</code>.</div>
+        </div>
+        <button class="btn btn-primary" type="submit"><i data-feather="save"></i> Save</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header"><i data-feather="user"></i> Identity</div>
+      <div class="card-body">
+        <div class="small text-secondary mb-1">Active identity</div>
+        <div class="ident mb-2">{{ settings.identity or '—' }}</div>
+        {% if identity_ok is true %}
+          <span class="chip chip-public"><i data-feather="check-circle"></i> token verified by server</span>
+        {% elif identity_ok is false %}
+          <span class="chip chip-private"><i data-feather="x-circle"></i> server rejected token</span>
+        {% endif %}
+        <hr>
+        <div class="d-grid gap-2">
+          <form method="post">
+            <input type="hidden" name="action" value="use_cli">
+            <button class="btn btn-outline-secondary w-100" type="submit"><i data-feather="terminal"></i> Reload from <code>spacetime</code> CLI login</button>
+          </form>
+          <form method="post" onsubmit="return confirm('Databases owned by the current identity will no longer be listed automatically. Continue?')">
+            <input type="hidden" name="action" value="new_identity">
+            <button class="btn btn-outline-secondary w-100" type="submit"><i data-feather="refresh-ccw"></i> Generate a fresh identity</button>
+          </form>
+        </div>
+        <div class="form-text mt-3">
+          To see databases published with the CLI, run <code>spacetime login --server-issued-login local</code> and reload here;
+          stview will pick up the token from <span class="mono">~/.config/spacetime/cli.toml</span>.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i data-feather="eye"></i> Tracked databases</div>
+      {% if settings.tracked_databases %}
+      <ul class="list-group list-group-flush">
+        {% for ref in settings.tracked_databases %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <a class="mono text-truncate" href="{{ url_for('ui.database', ref=ref) }}">{{ ref }}</a>
+          <form method="post" action="{{ url_for('ui.untrack_database', ref=ref) }}">
+            <button class="btn btn-sm btn-outline-secondary" title="Untrack"><i data-feather="x"></i></button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body small text-secondary">None. Add some from the <a href="{{ url_for('ui.databases') }}">Databases</a> page.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
