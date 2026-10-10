@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Databases{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Databases</li>{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-title h3"><i data-feather="database"></i> Databases</h1>
+    <div class="page-subtitle">{{ databases|length }} database{{ '' if databases|length == 1 else 's' }} visible to this identity</div>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#trackForm"><i data-feather="plus"></i> Track database</button>
+    <a class="btn btn-primary" href="{{ url_for('ui.publish') }}"><i data-feather="upload-cloud"></i> Publish</a>
+  </div>
+</div>
+
+<div class="collapse mb-3 {% if not databases and not errors %}show{% endif %}" id="trackForm">
+  <div class="card">
+    <div class="card-body">
+      <form class="row g-2 align-items-end" method="post" action="{{ url_for('ui.track_database') }}">
+        <div class="col-md-8">
+          <label class="form-label fw-semibold">Database name or identity</label>
+          <input class="form-control mono" name="ref" placeholder="e.g. quickstart-chat or c200…469b" required autofocus>
+          <div class="form-text">Databases owned by other identities are not listed automatically – add them here to browse their public tables.</div>
+        </div>
+        <div class="col-md-auto">
+          <button class="btn btn-primary" type="submit"><i data-feather="eye"></i> Track</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% for err in errors %}
+<div class="alert alert-warning d-flex gap-2"><i data-feather="alert-triangle"></i><div>{{ err }}</div></div>
+{% endfor %}
+
+<div class="card">
+  <div class="card-header">
+    <i data-feather="list"></i> All databases
+    <input class="form-control form-control-sm ms-auto" style="max-width:260px" placeholder="Filter…" data-filter="#dbTable">
+  </div>
+  {% if databases %}
+  <div class="table-wrap">
+    <table class="table table-hover align-middle" id="dbTable">
+      <thead>
+        <tr><th>Name</th><th>Identity</th><th>Owner</th><th>Host</th><th class="text-end">Tables</th><th class="text-end">Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for db in databases %}
+        <tr class="row-link">
+          <td>
+            <a href="{{ url_for('ui.database', ref=db.ref) }}" class="fw-semibold d-inline-flex align-items-center gap-2">
+              <i data-feather="database" style="width:16px;height:16px"></i>{{ db.display_name }}
+            </a>
+            {% if db.names and db.names|length > 1 %}
+              <div class="small text-secondary">also: {{ db.names[1:]|join(', ') }}</div>
+            {% endif %}
+          </td>
+          <td class="ident text-secondary" title="{{ db.identity }}">{{ db.identity|short_id }}</td>
+          <td class="ident text-secondary" title="{{ db.owner_identity }}">
+            {% if db.owner_identity == settings.identity %}<span class="chip chip-pk"><i data-feather="user"></i> you</span>{% else %}{{ db.owner_identity|short_id }}{% endif %}
+          </td>
+          <td><span class="chip">{{ db.host_type or '?' }}</span></td>
+          <td class="text-end">{{ table_counts.get(db.identity) if table_counts.get(db.identity) is not none else '—' }}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ui.sql', ref=db.ref) }}" title="SQL console"><i data-feather="terminal"></i></a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ui.logs', ref=db.ref) }}" title="Logs"><i data-feather="file-text"></i></a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ui.database', ref=db.ref) }}" title="Open"><i data-feather="arrow-right"></i></a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <i data-feather="inbox"></i>
+    <div class="fw-semibold">No databases found</div>
+    <div class="small">Your identity doesn't own any databases on this server yet. Publish a module above or track an existing database by name.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
