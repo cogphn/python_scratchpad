@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ table.name }} · {{ db.display_name }}{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{{ url_for('ui.databases') }}">Databases</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('ui.database', ref=ref) }}">{{ db.display_name }}</a></li>
+  <li class="breadcrumb-item active">{{ table.name }}</li>
+{% endblock %}
+{% block topbar_actions %}
+  <a class="btn btn-primary btn-sm" href="{{ url_for('ui.sql', ref=ref, q='SELECT * FROM ' ~ table.name) }}"><i data-feather="terminal"></i> Query in SQL</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-title h3"><i data-feather="grid"></i> {{ table.name }}
+      <span class="chip {{ 'chip-public' if table.is_public else 'chip-private' }}"><i data-feather="{{ 'unlock' if table.is_public else 'lock' }}"></i> {{ table.access }}</span>
+      {% if table.kind != 'User' %}<span class="chip chip-system">{{ table.kind }}</span>{% endif %}
+    </h1>
+    <div class="page-subtitle">
+      {{ table.columns|length }} columns ·
+      {% if table.row_count is not none %}{{ '{:,}'.format(table.row_count) }} rows{% else %}row count unavailable{% endif %}
+      · in <a href="{{ url_for('ui.database', ref=ref) }}">{{ db.display_name }}</a>
+    </div>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <div class="btn-group" role="group">
+      <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i data-feather="grid"></i> Switch table</button>
+      <ul class="dropdown-menu dropdown-menu-end" style="max-height:320px;overflow:auto">
+        {% for t in schema.tables %}
+          <li><a class="dropdown-item mono {% if t.name == table.name %}active{% endif %}" href="{{ url_for('ui.table', ref=ref, table=t.name, limit=limit) }}">{{ t.name }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('ui.table', ref=ref, table=table.name, limit=limit) }}" title="Refresh"><i data-feather="refresh-cw"></i></a>
+  </div>
+</div>
+
+<ul class="nav nav-pills mb-3" id="tableTabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#dataTab" type="button"><i data-feather="layers"></i> Data</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#schemaTab" type="button"><i data-feather="columns"></i> Schema</button></li>
+</ul>
+
+<div class="tab-content">
+  <!-- ─── Data ─── -->
+  <div class="tab-pane fade show active" id="dataTab">
+    <div class="card">
+      <div class="card-header">
+        <i data-feather="layers"></i> Rows
+        {% if result %}<span class="badge text-bg-light">{{ result.row_count }} shown</span>{% endif %}
+        {% if result and result.duration_micros is not none %}<span class="text-secondary fw-normal small">· {{ '%.2f'|format(result.duration_micros / 1000) }} ms</span>{% endif %}
+        <form class="ms-auto d-flex align-items-center gap-2" method="get">
+          <input class="form-control form-control-sm" style="max-width:220px" placeholder="Filter shown rows…" data-filter="#dataTable">
+          <label class="small text-secondary text-nowrap">Limit</label>
+          <select class="form-select form-select-sm" name="limit" onchange="this.form.submit()" style="width:auto">
+            {% for n in row_limits %}<option value="{{ n }}" {% if n == limit %}selected{% endif %}>{{ n }}</option>{% endfor %}
+          </select>
+        </form>
+      </div>
+      {% if error %}
+        <div class="alert alert-danger m-3 d-flex gap-2"><i data-feather="alert-octagon"></i>
+          <div><strong>Could not read rows.</strong> {{ error }}
+          {% if not table.is_public %}<div class="small mt-1">This table is private; reading it requires the database owner's token.</div>{% endif %}</div></div>
+      {% elif result and result.rows %}
+        {% if truncated %}<div class="alert alert-info m-3 py-2 small">The server returned more rows than the limit; showing the first {{ limit }}.</div>{% endif %}
+        <div class="table-wrap">
+          <table class="table table-hover table-data" id="dataTable">
+            <thead><tr>
+              {% for c in result.columns %}<th>{{ c }}<div class="type-tag text-lowercase fw-normal" style="text-transform:none">{{ result.types[loop.index0] }}</div></th>{% endfor %}
+            </tr></thead>
+            <tbody>
+              {% for row in result.rows %}<tr>{% for v in row %}<td title="click to expand">{{ v }}</td>{% endfor %}</tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty"><i data-feather="inbox"></i><div class="fw-semibold">Table is empty</div></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ─── Schema ─── -->
+  <div class="tab-pane fade" id="schemaTab">
+    <div class="row g-3">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header"><i data-feather="columns"></i> Columns</div>
+          <div class="table-wrap">
+            <table class="table align-middle">
+              <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Attributes</th></tr></thead>
+              <tbody>
+              {% for c in table.columns %}
+                <tr>
+                  <td class="text-secondary">{{ c.index }}</td>
+                  <td class="mono fw-semibold">{{ c.name }}</td>
+                  <td class="type-tag">{{ c.type_name }}</td>
+                  <td class="d-flex gap-1 flex-wrap">
+                    {% if c.primary_key %}<span class="chip chip-pk"><i data-feather="key"></i> primary key</span>{% endif %}
+                    {% if c.auto_inc %}<span class="chip"><i data-feather="plus-circle"></i> auto_inc</span>{% endif %}
+                    {% if c.unique and not c.primary_key %}<span class="chip"><i data-feather="hash"></i> unique</span>{% endif %}
+                    {% if c.indexed %}<span class="chip"><i data-feather="search"></i> indexed</span>{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card mb-3">
+          <div class="card-header"><i data-feather="search"></i> Indexes <span class="badge text-bg-light">{{ table.indexes|length }}</span></div>
+          {% if table.indexes %}
+          <ul class="list-group list-group-flush small">
+            {% for ix in table.indexes %}
+            <li class="list-group-item">
+              <div class="mono fw-semibold">{{ ix.name or '(unnamed)' }}</div>
+              <div class="text-secondary">{{ ix.kind }} on {{ ix.columns|join(', ') }}</div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}<div class="card-body text-secondary small">No indexes.</div>{% endif %}
+        </div>
+        <div class="card">
+          <div class="card-header"><i data-feather="shield"></i> Constraints <span class="badge text-bg-light">{{ table.constraints|length }}</span></div>
+          {% if table.constraints %}
+          <ul class="list-group list-group-flush small">
+            {% for c in table.constraints %}
+            <li class="list-group-item d-flex justify-content-between"><span class="mono">{{ c.name or '(unnamed)' }}</span><span class="chip">{{ c.kind }}</span></li>
+            {% endfor %}
+          </ul>
+          {% else %}<div class="card-body text-secondary small">No constraints.</div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
