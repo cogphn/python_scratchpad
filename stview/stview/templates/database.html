@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}{{ db.display_name }}{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{{ url_for('ui.databases') }}">Databases</a></li>
+  <li class="breadcrumb-item active">{{ db.display_name }}</li>
+{% endblock %}
+{% block topbar_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('ui.logs', ref=ref) }}"><i data-feather="file-text"></i> Logs</a>
+  <a class="btn btn-primary btn-sm" href="{{ url_for('ui.sql', ref=ref) }}"><i data-feather="terminal"></i> SQL</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div class="min-w-0">
+    <h1 class="page-title h3"><i data-feather="database"></i> {{ db.display_name }}
+      {% if is_owner %}<span class="chip chip-pk"><i data-feather="user"></i> owned by you</span>{% endif %}
+      {% if tracked %}<span class="chip"><i data-feather="eye"></i> tracked</span>{% endif %}
+    </h1>
+    <div class="page-subtitle ident d-flex align-items-center gap-2">
+      {{ db.identity }}
+      <button class="btn btn-sm btn-icon btn-outline-secondary" style="width:28px;height:28px" data-copy="{{ db.identity }}" title="Copy identity"><i data-feather="copy"></i></button>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if tracked %}
+    <form method="post" action="{{ url_for('ui.untrack_database', ref=ref) }}">
+      <button class="btn btn-outline-secondary" type="submit"><i data-feather="eye-off"></i> Untrack</button>
+    </form>
+    {% endif %}
+    <button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteModal"><i data-feather="trash-2"></i> Delete</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card">
+      <div class="stat-icon"><i data-feather="grid"></i></div>
+      <div><div class="stat-value">{{ schema.tables|length if schema else '—' }}</div><div class="stat-label">Tables</div></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card">
+      <div class="stat-icon info"><i data-feather="zap"></i></div>
+      <div><div class="stat-value">{{ schema.reducers|length if schema else '—' }}</div><div class="stat-label">Reducers</div></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card">
+      <div class="stat-icon success"><i data-feather="layers"></i></div>
+      <div>
+        {% set total = namespace(n=0, known=false) %}
+        {% if schema %}{% for t in schema.tables %}{% if t.row_count is not none %}{% set total.n = total.n + t.row_count %}{% set total.known = true %}{% endif %}{% endfor %}{% endif %}
+        <div class="stat-value">{{ '{:,}'.format(total.n) if total.known else '—' }}</div><div class="stat-label">Total rows</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card">
+      <div class="stat-icon"><i data-feather="cpu"></i></div>
+      <div class="min-w-0"><div class="stat-value fs-6 text-truncate">{{ db.host_type or '?' }}</div><div class="stat-label">Host type</div></div>
+    </div>
+  </div>
+</div>
+
+{% if schema_error %}
+<div class="alert alert-warning d-flex gap-2"><i data-feather="alert-triangle"></i><div><strong>Could not load schema.</strong> {{ schema_error }}</div></div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <!-- Tables -->
+    <div class="card mb-3" id="tables">
+      <div class="card-header"><i data-feather="grid"></i> Tables
+        <input class="form-control form-control-sm ms-auto" style="max-width:240px" placeholder="Filter tables…" data-filter="#tablesTable">
+      </div>
+      {% if schema and schema.tables %}
+      <div class="table-wrap">
+        <table class="table table-hover align-middle" id="tablesTable">
+          <thead><tr><th>Table</th><th>Access</th><th>Columns</th><th class="text-end">Rows</th><th class="text-end"></th></tr></thead>
+          <tbody>
+          {% for t in schema.tables %}
+            <tr class="row-link">
+              <td>
+                <a class="fw-semibold" href="{{ url_for('ui.table', ref=ref, table=t.name) }}">{{ t.name }}</a>
+                {% if t.kind != 'User' %}<span class="chip chip-system ms-1">{{ t.kind }}</span>{% endif %}
+                {% if t.scheduled %}<span class="chip chip-lifecycle ms-1"><i data-feather="clock"></i> scheduled</span>{% endif %}
+              </td>
+              <td><span class="chip {{ 'chip-public' if t.is_public else 'chip-private' }}"><i data-feather="{{ 'unlock' if t.is_public else 'lock' }}"></i> {{ t.access }}</span></td>
+              <td class="type-tag">
+                {% for c in t.columns[:4] %}{{ c.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% if t.columns|length > 4 %}, +{{ t.columns|length - 4 }}{% endif %}
+              </td>
+              <td class="text-end mono">{{ '{:,}'.format(t.row_count) if t.row_count is not none else '—' }}</td>
+              <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('ui.table', ref=ref, table=t.name) }}"><i data-feather="arrow-right"></i></a></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% elif schema %}
+      <div class="empty"><i data-feather="grid"></i><div>This module defines no tables.</div></div>
+      {% endif %}
+    </div>
+
+    <!-- Reducers -->
+    <div class="card mb-3" id="reducers">
+      <div class="card-header"><i data-feather="zap"></i> Reducers</div>
+      {% if schema and schema.reducers %}
+      <div class="accordion accordion-flush" id="reducerAcc">
+        {% for r in schema.reducers %}
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#red{{ loop.index }}">
+              <span class="mono fw-semibold me-2">{{ r.name }}</span>
+              <span class="type-tag">({% for n, t in r.params %}{{ n }}: {{ t }}{% if not loop.last %}, {% endif %}{% endfor %})</span>
+              {% if r.lifecycle %}<span class="chip chip-lifecycle ms-2">{{ r.lifecycle }}</span>{% endif %}
+            </button>
+          </h2>
+          <div id="red{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#reducerAcc">
+            <div class="accordion-body">
+              {% if r.lifecycle %}
+                <div class="text-secondary small">Lifecycle reducers are invoked by the host and cannot be called directly.</div>
+              {% else %}
+              <form method="post" action="{{ url_for('ui.call_reducer', ref=ref, reducer=r.name) }}" class="row g-2 align-items-end">
+                <div class="col">
+                  <label class="form-label small text-secondary mb-1">Arguments (JSON array{% if r.params %}: {% for n, t in r.params %}<span class="mono">{{ t }}</span>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %})</label>
+                  <input class="form-control form-control-sm mono" name="args" value="[{% for n, t in r.params %}{% if t == 'string' %}&quot;&quot;{% elif t == 'bool' %}false{% elif t.startswith('Option') %}null{% else %}0{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}]">
+                </div>
+                <div class="col-auto"><button class="btn btn-sm btn-primary"><i data-feather="play"></i> Call</button></div>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% elif schema %}
+      <div class="empty py-4"><div>No reducers.</div></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <!-- Details -->
+    <div class="card mb-3">
+      <div class="card-header"><i data-feather="info"></i> Details</div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-4 text-secondary fw-normal">Identity</dt><dd class="col-8 ident">{{ db.identity }}</dd>
+          <dt class="col-4 text-secondary fw-normal">Owner</dt><dd class="col-8 ident">{{ db.owner_identity or '—' }}</dd>
+          <dt class="col-4 text-secondary fw-normal">Host type</dt><dd class="col-8">{{ db.host_type or '—' }}</dd>
+          <dt class="col-4 text-secondary fw-normal">Program hash</dt><dd class="col-8 ident">{{ db.initial_program or '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Names -->
+    <div class="card mb-3">
+      <div class="card-header"><i data-feather="tag"></i> Names</div>
+      <div class="card-body">
+        {% if db.names %}
+          <div class="d-flex flex-wrap gap-2 mb-3">{% for n in db.names %}<span class="chip mono fs-6 fw-normal">{{ n }}</span>{% endfor %}</div>
+        {% else %}
+          <div class="text-secondary small mb-3">This database has no names; it can only be referenced by identity.</div>
+        {% endif %}
+        <form method="post" action="{{ url_for('ui.add_name', ref=ref) }}" class="input-group input-group-sm">
+          <input class="form-control mono" name="name" placeholder="new-name" required pattern="[A-Za-z0-9_\-]+">
+          <button class="btn btn-outline-primary" type="submit"><i data-feather="plus"></i> Add</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Types -->
+    {% if schema and schema.types %}
+    <div class="card mb-3">
+      <div class="card-header"><i data-feather="box"></i> Types <span class="badge text-bg-light ms-1">{{ schema.types|length }}</span></div>
+      <ul class="list-group list-group-flush small" style="max-height:360px;overflow:auto">
+        {% for name, ty in schema.types %}
+        <li class="list-group-item d-flex justify-content-between gap-2">
+          <span class="mono fw-semibold">{{ name }}</span><span class="type-tag text-truncate" title="{{ ty }}">{{ ty }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if schema %}
+    <details class="card">
+      <summary class="card-header" style="cursor:pointer"><i data-feather="code"></i> Raw schema JSON</summary>
+      <pre class="card-body small mb-0" style="max-height:420px;overflow:auto">{{ schema.raw|pretty_json }}</pre>
+    </details>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Delete modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{{ url_for('ui.delete_database', ref=ref) }}">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center gap-2 text-danger"><i data-feather="alert-triangle"></i> Delete database</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>This permanently deletes <strong>{{ db.display_name }}</strong> and all of its data. This cannot be undone.</p>
+        {% if not is_owner %}<div class="alert alert-warning small py-2">Your identity does not own this database – the server will most likely reject the request.</div>{% endif %}
+        <label class="form-label">Type <code>{{ db.display_name }}</code> to confirm</label>
+        <input class="form-control mono" name="confirm" autocomplete="off" data-confirm-input="{{ db.display_name }}">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-danger" disabled><i data-feather="trash-2"></i> Delete permanently</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
