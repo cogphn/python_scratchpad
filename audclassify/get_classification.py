@@ -209,10 +209,7 @@ def main():
             wtr.writeheader()
             wtr.writerows(rows)
 
-    from collections import Counter
-    dist = Counter(r["label"] for r in rows)
     print(f"\nwrote {out} ({len(rows)} files)")
-    print("label distribution:", dict(dist))
 
 
 if __name__ == "__main__":
