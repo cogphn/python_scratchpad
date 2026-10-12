@@ -143,12 +143,13 @@ class NewFileHandler(FileSystemEventHandler):
             log.warning(f"{file_path.name} disappeared before it could be sent.")
             return
         if classification['label'] != 'backgroundnoise' and classification['top_class'] != 'Silence':
-            classmsgtext = f"Label: {classification['label']}, top_class: {classification['top_class']}"
+            classmsgtext = f"label: {classification['label']}, top_class: {classification['top_class']}"
             send_file_to_telegram(file_path, classmsgtext)
-        if classification['label'] == 'voice':
-            print("[!] voice detected - sending capture instruction")
-            text = "capture"
-            send_telegram_message(text)
+        #if classification['label'] == 'voice':
+        #    print("[!] voice detected - sending capture instruction")
+        #    text = "capture"
+        #    #send_telegram_message(text)
+        os.remove(file_path)
 
 
 def main():
