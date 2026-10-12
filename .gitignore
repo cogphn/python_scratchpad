@@ -3,3 +3,4 @@
 data/meili_config.json
 audclassify/uv.lock
 audclassify/.tfhub/
+audclassify/*.csv
