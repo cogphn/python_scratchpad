@@ -5,3 +5,9 @@ audclassify/uv.lock
 audclassify/.tfhub/
 audclassify/*.csv
 audclassify/__pycache__/
+*/.env
+*/.tfhub/*
+/__pycache__/*
+send_aud/__pycache__/*.pyc
+stview/stview/__pycache__/*
+*/uv.lock
