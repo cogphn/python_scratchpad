@@ -1,3 +1,5 @@
 */.venv/*
 
 data/meili_config.json
+audclassify/uv.lock
+audclassify/.tfhub/
